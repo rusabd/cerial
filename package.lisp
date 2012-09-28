@@ -7,6 +7,7 @@
 #+(or linux unix)
 (defpackage #:unistd
   (:use #:cl 
+	#:annot.class
 	#+(not sbcl) #:cffi)
   (:shadow #:cl #:close #:open))
    

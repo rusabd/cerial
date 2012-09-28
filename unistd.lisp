@@ -94,6 +94,7 @@
 
 (make-foreign-termios-struct)
 
+@export-accessors
 (defclass <termios> ()
   ((iflag :initform 0 :initarg :iflag :accessor iflag)
    (oflag :initform 0 :initarg :oflag :accessor oflag)
