@@ -75,7 +75,7 @@
    (inter-char-timeout :initform nil
 		       :accessor inter-char-timeout
 		       :initarg :inter-char-timeout
-		       :documentation "inter-character timeout, None to disable")
+		       :documentation "inter-character timeout, nil to disable")
 
    (supported-parities :initform +PARITIES+
 		       :reader get-supported-parities)
@@ -89,10 +89,6 @@
    (supported-bytesizes :initform +BYTESIZES+
 			:reader get-supported-bytesizes)))
 
-;; stubs
-(defmethod close-serial ((serial <serial-base>)) (print "CLOSED"))
-(defmethod open-serial ((serial <serial-base>)) (setf (slot-value serial 'fd) 1))
-(defmethod configure-port ((s <serial-base>)) nil)
 
 (defun maybe-configure-port (s)
   (when (get-fd s)
