@@ -151,50 +151,50 @@
 
 
 
-#+xxx(@export
-(defvar CLOCAL sb-posix:CLOCAL)
+@export
+(defconstant CLOCAL    #o0004000)
 
 @export
-(defvar CREAD sb-posix:CREAD)
+(defconstant CREAD     #o0000200)
 
 @export
-(defvar ICANON sb-posix:ICANON)
+(defconstant ECHO      #o0000010)
 
 @export
-(defvar ECHO sb-posix:ECHO)
+(defconstant ECHOE     #o0000020)
 
 @export
-(defvar ECHOE sb-posix:ECHOE)
+(defconstant ECHOK     #o0000040)
 
 @export
-(defvar ECHOK sb-posix:ECHOK)
+(defconstant ECHONL    #o0000100)
 
 @export
-(defvar ECHONL sb-posix:ECHONL)
+(defconstant ISIG      #o0000001)
 
 @export
-(defvar ISIG sb-posix:ISIG)
+(defconstant ICANON    #o0000002)
 
 @export
-(defvar IEXTEN sb-posix:IEXTEN)
+(defconstant INLCR     #o0000100)
 
 @export
-(defvar OPOST sb-posix:OPOST)
+(defconstant IGNCR     #o0000200)
 
 @export
-(defvar INLCR sb-posix:INLCR)
+(defconstant ICRNL     #o0000400)
 
 @export
-(defvar IGNCR sb-posix:IGNCR)
+(defconstant IEXTEN    #o0100000)
 
 @export
-(defvar ICRNL sb-posix:ICRNL)
+(defconstant IGNBRK    #o0000001)
 
 @export
-(defvar IGNBRK sb-posix:IGNBRK)
+(defconstant OPOST     #o0000001)
 
 @export
-(defvar PARMRK sb-posix:PARMRK))
+(defconstant PARMRK    #o0000010)
 
 
 #+xxx(defun cfsetispeed (speed &optional termios)
