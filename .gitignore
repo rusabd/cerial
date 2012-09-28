@@ -3,6 +3,7 @@
 *.*fas
 *.lib
 *.*~
+*.lx64fsl
 
 # Packages #
 ############
