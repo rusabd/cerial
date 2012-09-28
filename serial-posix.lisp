@@ -57,14 +57,14 @@
 
 (defmethod configure-port :around ((s <serial-posix>))
   (unless (get-fd s) (error 'serial-error :text "Port has to be open!"))
-  (call-next-method))
+  (call-next-method s))
 
 (defun get-exported-symbol (symbol &optional (package :cl-user))
   (multiple-value-bind (s e)
       (find-symbol symbol package)
     (when (and s (eql e :EXTERNAL)) s)))
 
-(defmethod configure-port ((s <serial-posix>))
+#+xxx(defmethod configure-port ((s <serial-posix>))
   (let ((termios (unistd:tcgetattr (get-fd s)))
 	(vtime (and (inter-char-timeout s) (floor (* 10 (inter-char-timeout s))))))
     (macrolet ((set-flag (flag &key (on ()) (off ()))
@@ -81,7 +81,7 @@
 		:off (unistd:INLCR unistd:IGNCR unistd:ICRNL unistd:IGNBRK))
       (when (get-exported-symbol "PARMRK" :unistd)
 	(set-flag (unistd:iflag termios)
-		  :off (unistd:PARMRK))))))
+		  :off (unistd:PARMRK)))))
 
       (when (get-exported-symbol "IUCLC" :unistd)
 	(set-flag (termios-iflag termios)
@@ -148,15 +148,7 @@
 	     (ospeed ispeed))
 	(unless ispeed (set-custom-baud-rate (baudrate s))))
       
-      (unistd:tcsetattr (fd s) unistd:TCSANOW termios)))
-	
-      
-	
-	  
-
-	      
-	  
-	  ;; setup baud-rate
+      (unistd:tcsetattr (fd s) unistd:TCSANOW termios))	  
     
   
 	 
