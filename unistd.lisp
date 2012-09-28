@@ -117,8 +117,9 @@
 	    collect (mem-aref cc 'cc_t i))))
     (make-instance '<termios> :iflag iflag :oflag oflag :cflag cflag :lflag lflag :cc cc)))
 
+
 (defmacro with-errno-checking (&optional opts ffcall)
-  (destructuring-bind (&optional (test '>) (comp -1)) 
+  (destructuring-bind (&optional (test '>) (comp -1))
       opts
     `(let ((res ,ffcall))
        (unless (,test res ,comp)
@@ -164,14 +165,15 @@
     (with-errno-checking ()
 	(foreign-funcall "tcsetattr" :int fd :int (or actions 0) ftermios ptr :int))))
 
+;; TODO: Is there a better way of dealing with c varargs??
 @export
-(defun fcntl (fd cmd &optional args)
+(defmacro fcntl (fd cmd &rest args)
+  `(with-errno-checking ()
+     (foreign-funcall "fcntl"
+		      :int ,fd :int ,cmd ,@args :int)))
+
+@export
+(defun tcflush (fd queue-selector)
   (with-errno-checking ()
-      (apply (partial 'foreign-funcall
-		      "fcntl" :int fd :int cmd) args)))
+    (foreign-funcall "tcflush" :int fd :int queue-selector :int)))
 
-#+xxx(defun tcflush (fd queue-selector)
-  (sb-posix:tcflush fd queue-selector))
-
-#+xxx(defun tcsetattr (fd actions termios)
-  (sb-posix:tcsetattr fd actions termios))
