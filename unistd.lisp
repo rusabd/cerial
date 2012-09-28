@@ -63,6 +63,10 @@
 @export (defconstant ONONBLOCK #o0004000)
 @export (defconstant ORDWR     #o0000002)
 @export (defconstant FSETFL    #o0000004)
+@export (defconstant CS5       #o0000000)
+@export (defconstant CS6       #o0000020)
+@export (defconstant CS7       #o0000040)
+@export (defconstant CS8       #o0000060)
 
 (defconstant +NCCS+ 32)
 
