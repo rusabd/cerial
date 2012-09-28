@@ -3,6 +3,6 @@
 (defpackage #:cerial
   (:use #:cl))
 
-(defpackage #:posix
-  (:use #:cl #:cffi))
-
+(defpackage #:unistd
+  (:use #:cl #:cffi)
+  (:shadow #:cl #:close #:open))

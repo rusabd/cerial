@@ -40,18 +40,18 @@
 
 (defmethod open-serial ((s <serial-posix>))
   (print (port s))
-  (let* ((fd (posix:fopen
+  (let* ((fd (termios:open
 	      (port s)
-	      (logior posix:ORDWR 
-		      posix:ONOCTTY
-		      posix:ONONBLOCK))))
+	      (logior termios:ORDWR 
+		      termios:ONOCTTY
+		      termios:ONONBLOCK))))
     (setf (slot-value s 'fd) fd)))
 
 (defmethod close-serial ((s <serial-posix>))
   (let ((fd (get-fd s)))
     (when fd
-      (posix:fcntl fd posix:FSETFL 0)
-      (posix:fclose fd)
+      (fcntl fd termios:FSETFL 0)
+      (termios:close fd)
       (setf (slot-value s 'fd) nil))))
 
 (defmethod configure-port :around ((s <serial-posix>))
