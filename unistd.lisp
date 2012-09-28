@@ -80,16 +80,6 @@
   (:report (lambda (condition stream)
 	     (format stream "~A: ~A" (text condition) (strerror *errno*)))))
 
-(defun partial (f &rest args)
-  "Takes a function f and fewer than the normal arguments to f, and
-  returns a fn that takes a variable number of additional args. When
-  called, the returned function calls f with args + additional args."
-  (case (length args)
-    (1 (lambda (&rest more) (apply f (cons (first args) more))))
-    (2 (lambda (&rest more) (apply f (cons (first args) (cons (second args) more)))))
-    (3 (lambda (&rest more) (apply f (cons (first args) (cons (second args) (cons (third args) more))))))
-    (t (lambda (&rest more) (apply f (concatenate 'list args more))))))
-
 (cffi:defctype tcflag_t :uint)
 
 (cffi:defctype cc_t :uchar)
