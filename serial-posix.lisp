@@ -64,42 +64,60 @@
       (find-symbol symbol package)
     (when (and s (eql e :EXTERNAL)) s)))
 
-#+xxx(defmethod configure-port ((s <serial-posix>))
+(defun curry-right (fun &rest args)
+	   (lambda (&rest more)
+	     (apply fun (append more args))))
+
+(defmethod configure-port ((s <serial-posix>))
   (let ((termios (unistd:tcgetattr (get-fd s)))
 	(vtime (and (inter-char-timeout s) (floor (* 10 (inter-char-timeout s))))))
     (macrolet ((set-flag (flag &key (on ()) (off ()))
-		 `(setf ,flag (logior ,@on (logand ,flag (lognot (logior ,@off)))))))
+		 `(setf ,flag 
+			(logior ,@(mapcar (curry-right 'find-symbol :unistd) on) 
+				(logand ,flag (lognot (logior ,@(mapcar (curry-right 'find-symbol :unistd) off)))))))
+	       (maybe-set-flag (flag &key (on ()) (off ()) (err nil) (errtxt nil))
+		 (labels ((fn (res sym)
+			    (let ((sym (cerial::get-exported-symbol sym :unistd)))
+			      (if sym
+				  (cons sym res)
+				  (and err (error err :text errtxt))))))
+		   (let ((on (reduce #'fn on :initial-value nil))
+			 (off (reduce #'fn off :initial-value nil)))
+		     `(setf ,flag (logior ,@on (logand ,flag (lognot (logior ,@off)))))))))
       ;; setup raw mode/ no echo/ binary
       (set-flag (unistd:cflag termios)
-		:on (unistd:CLOCAL unistd:CREAD))
+		:on ("CLOCAL" "CREAD"))
       (set-flag (unistd:lflag termios)
-		:off (unistd:ICANON unistd:ECHO unistd:ECHOE unistd:ECHOK unistd:ECHONL unistd:ISIG unistd:IEXTEN))
+		:off ("ICANON" "ECHO" "ECHOE" "ECHOK" "ECHONL" "ISIG" "IEXTEN"))
+      
       
       (set-flag (unistd:oflag termios)
-		:off (unistd:OPOST))
+		:off ("OPOST"))
       (set-flag (unistd:iflag termios)
-		:off (unistd:INLCR unistd:IGNCR unistd:ICRNL unistd:IGNBRK))
-      (when (get-exported-symbol "PARMRK" :unistd)
-	(set-flag (unistd:iflag termios)
-		  :off (unistd:PARMRK)))))
+		:off ("INLCR" "IGNCR" "ICRNL" "IGNBRK"))
 
-      (when (get-exported-symbol "IUCLC" :unistd)
-	(set-flag (termios-iflag termios)
-		  :off (unistd:IUCLC)))
+      (maybe-set-flag (unistd:iflag termios)
+		     :off ("PARMRK"))
+
+      (maybe-set-flag (unistd:iflag termios)
+		     :off ("IUCLC"))
       
       ;; setup char length
-      (let ((char-length (or (get-exported-symbol (format nil "CS~A" (bytesize s)))
-			     (error 'value-error :text (format nil "Invalid char len: ~A" (bytesize s))))))
-	(set-flat (termios-cflag termios)
-		  :on (char-length)
-		  :off (unistd:CSIZE)))
+      (set-flag (unistd:cflag termios)
+		:off ("CSIZE"))
+
+      (case (bytesize s)
+	(8 (set-flag (unistd:cflag termios) :on ("CS8")))
+	(7 (set-flag (unistd:cflag termios) :on ("CS7")))
+	(6 (set-flag (unistd:cflag termios) :on ("CS6")))
+	(5 (set-flag (unistd:cflag termios) :on ("CS5")))
+	(t (error 'value-error (format nil "Invalid char len: ~A" (bytesize s)))))
+
       ;; setup stopbits
       
       (case (stopbits s)
-	(1 (set-flag (termios clfag)
-		     :off (unistd:CSTOPB)))
-	((or 2 1.5) (set-flag (termios clfag)
-			      :on (unistd:CSTOPB)))
+	(1 (set-flag (unistd:cflag termios) :off (unistd:CSTOPB)))
+	((or 2 1.5) (set-flag (unistd:cflag termios) :on (unistd:CSTOPB)))
 	(t (error 'value-error :text (format nil "Invalid stop bit spec: ~A" (stopbits s)))))
 
       ;; setup parity
