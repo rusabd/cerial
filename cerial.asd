@@ -7,7 +7,8 @@
   :license "Specify license here"
   :depends-on (#:cl-annot #:cffi)
   :components ((:file "package")
-               (:file "cerial")
+	       (:file "unistd")
+               (:file "serial-base")
 	       (:file "serial-posix")
 	       (:file "serial-win32")))
 
