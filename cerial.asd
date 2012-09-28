@@ -11,5 +11,5 @@
 	       #+(or linux unix) (:file "unistd")
                (:file "serial-base")
 	       #+(or linux unix) (:file "serial-posix")
-	       #+windows (:file "serial-win32")))
+	       #+(and windows (not lispworks)) (:file "serial-win32")))
 
