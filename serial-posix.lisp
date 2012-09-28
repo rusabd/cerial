@@ -5,10 +5,7 @@
   ()
   (:documentation "Serial port class POSIX implementation. Serial port configuration is done with termios and fcntl. Runs on Linux and many other Un*x like systems."))
 
-(defmethod device ((s <serial-posix>) port)
-  (declare (ignore s))
-  (format nil "/dev/ttyS~A" port))
-
+@export
 (defun make-serial-posix (&optional port 
 			  &key (baudrate 9600)
 			  (bytesize 8)
@@ -33,6 +30,10 @@
 		 :dsrdtr dsrdtr
 		 :inter-char-timeout inter-char-timeout))
 
+(defmethod device ((s <serial-posix>) port)
+  (declare (ignore s))
+  (format nil "/dev/ttyS~A" port))
+
 (defmethod open-serial :around ((s <serial-posix>))
   (unless (port s) (error 'serial-error :text "Port must be configured before it can be used."))
   (when (get-fd s) (error 'serial-error :text "Port is already open"))
@@ -40,18 +41,18 @@
 
 (defmethod open-serial ((s <serial-posix>))
   (print (port s))
-  (let* ((fd (termios:open
+  (let* ((fd (unistd:open
 	      (port s)
-	      (logior termios:ORDWR 
-		      termios:ONOCTTY
-		      termios:ONONBLOCK))))
+	      (logior unistd:ORDWR 
+		      unistd:ONOCTTY
+		      unistd:ONONBLOCK))))
     (setf (slot-value s 'fd) fd)))
 
 (defmethod close-serial ((s <serial-posix>))
   (let ((fd (get-fd s)))
     (when fd
-      (fcntl fd termios:FSETFL 0)
-      (termios:close fd)
+      (unistd:fcntl fd unistd:FSETFL)
+      (unistd:close fd)
       (setf (slot-value s 'fd) nil))))
 
 (defmethod configure-port :around ((s <serial-posix>))
@@ -64,77 +65,77 @@
     (when (and s (eql e :EXTERNAL)) s)))
 
 (defmethod configure-port ((s <serial-posix>))
-  (let ((termios (posix:tcgetattr (get-fd s)))
+  (let ((termios (unistd:tcgetattr (get-fd s)))
 	(vtime (and (inter-char-timeout s) (floor (* 10 (inter-char-timeout s))))))
     (macrolet ((set-flag (flag &key (on ()) (off ()))
 		 `(setf ,flag (logior ,@on (logand ,flag (lognot (logior ,@off)))))))
       ;; setup raw mode/ no echo/ binary
-      (set-flag (posix:cflag termios)
-		:on (posix:CLOCAL posix:CREAD))
-      (set-flag (posix:lflag termios)
-		:off (posix:ICANON posix:ECHO posix:ECHOE posix:ECHOK posix:ECHONL posix:ISIG posix:IEXTEN))
+      (set-flag (unistd:cflag termios)
+		:on (unistd:CLOCAL unistd:CREAD))
+      (set-flag (unistd:lflag termios)
+		:off (unistd:ICANON unistd:ECHO unistd:ECHOE unistd:ECHOK unistd:ECHONL unistd:ISIG unistd:IEXTEN))
       
-      (set-flag (posix:oflag termios)
-		:off (posix:OPOST))
-      (set-flag (posix:iflag termios)
-		:off (posix:INLCR posix:IGNCR posix:ICRNL posix:IGNBRK))
-      (when (get-exported-symbol "PARMRK" :posix)
-	(set-flag (posix:iflag termios)
-		  :off (posix:PARMRK))))))
+      (set-flag (unistd:oflag termios)
+		:off (unistd:OPOST))
+      (set-flag (unistd:iflag termios)
+		:off (unistd:INLCR unistd:IGNCR unistd:ICRNL unistd:IGNBRK))
+      (when (get-exported-symbol "PARMRK" :unistd)
+	(set-flag (unistd:iflag termios)
+		  :off (unistd:PARMRK))))))
 
-      (when (get-exported-symbol "IUCLC" :posix)
+      (when (get-exported-symbol "IUCLC" :unistd)
 	(set-flag (termios-iflag termios)
-		  :off (posix:IUCLC)))
+		  :off (unistd:IUCLC)))
       
       ;; setup char length
       (let ((char-length (or (get-exported-symbol (format nil "CS~A" (bytesize s)))
 			     (error 'value-error :text (format nil "Invalid char len: ~A" (bytesize s))))))
 	(set-flat (termios-cflag termios)
 		  :on (char-length)
-		  :off (posix:CSIZE)))
+		  :off (unistd:CSIZE)))
       ;; setup stopbits
       
       (case (stopbits s)
 	(1 (set-flag (termios clfag)
-		     :off (posix:CSTOPB)))
+		     :off (unistd:CSTOPB)))
 	((or 2 1.5) (set-flag (termios clfag)
-			      :on (posix:CSTOPB)))
+			      :on (unistd:CSTOPB)))
 	(t (error 'value-error :text (format nil "Invalid stop bit spec: ~A" (stopbits s)))))
 
       ;; setup parity
    
       (set-flag (termios iflag)
-		:off (posix:INPCK posix:ISTRIP))
+		:off (unistd:INPCK unistd:ISTRIP))
       (case (parity s)
-	(:PARITY-NONE (set-flag (termios cflag) :off (posix:PARENB posix:PARODD)))
-	(:PARITY-EVEN (set-flag (termios cflag) :off (posix:PARODD) :on (posix:PARENB)))
-	(:PARITY-ODD (set-flag (termios cflag) :on (posix:PARENB posix:PARODD)))
+	(:PARITY-NONE (set-flag (termios cflag) :off (unistd:PARENB unistd:PARODD)))
+	(:PARITY-EVEN (set-flag (termios cflag) :off (unistd:PARODD) :on (unistd:PARENB)))
+	(:PARITY-ODD (set-flag (termios cflag) :on (unistd:PARENB unistd:PARODD)))
 	(t (error 'value-error :text (format nil "Invalid parity: ~A" (parity s)))))
 
-      (if (get-exported-symbol "IXANY" :posix)
+      (if (get-exported-symbol "IXANY" :unistd)
 	  (if (xonxoff s)
 	      (set-flag (termios iflag)
-			:on (posix:IXON posix:IXOFF))
+			:on (unistd:IXON unistd:IXOFF))
 	      (set-flag (termios iflag)
-			:off (posix:IXON posix:IXOFF posix:IXANY)))
+			:off (unistd:IXON unistd:IXOFF unistd:IXANY)))
 	  (if (xonxoff s)
 	      (set-flag (termios iflag)
-			:on (posix:IXON posix:IXOFF))
+			:on (unistd:IXON unistd:IXOFF))
 	      (set-flag (termios iflag)
-			:off (posix:IXON posix:IXOFF))))
+			:off (unistd:IXON unistd:IXOFF))))
       
-      (if (get-exported-symbol "CRTSCTS" :posix)
+      (if (get-exported-symbol "CRTSCTS" :unistd)
 	  (if (rtscts s)
 	      (set-flag (termios iflag)
-			:on (posix:CRTSCTS))
+			:on (unistd:CRTSCTS))
 	      (set-flag (termios iflag)
-			:off (posix:CRTSCTS)))
-	  (when (get-exported-symbol "CNEW-RTSCTS" :posix)
+			:off (unistd:CRTSCTS)))
+	  (when (get-exported-symbol "CNEW-RTSCTS" :unistd)
 	    (if (rtscts s)
 		(set-flag (termios iflag)
-			  :on (posix:CNEW_RTSCTS))
+			  :on (unistd:CNEW_RTSCTS))
 		(set-flag (termios iflag)
-			  :off (posix:CNEW_RTSCTS)))))
+			  :off (unistd:CNEW_RTSCTS)))))
 
       (if (or (<= vtime 255) (>= vtime 0))
 	  (setf 
@@ -147,7 +148,7 @@
 	     (ospeed ispeed))
 	(unless ispeed (set-custom-baud-rate (baudrate s))))
       
-      (posix:tcsetattr (fd s) posix:TCSANOW termios)))
+      (unistd:tcsetattr (fd s) unistd:TCSANOW termios)))
 	
       
 	
