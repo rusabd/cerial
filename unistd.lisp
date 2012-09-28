@@ -67,6 +67,7 @@
 @export (defconstant CS6       #o0000020)
 @export (defconstant CS7       #o0000040)
 @export (defconstant CS8       #o0000060)
+@export (defconstant CSTOPB    #o0000100)
 
 (defconstant +NCCS+ 32)
 
