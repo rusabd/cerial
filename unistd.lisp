@@ -68,6 +68,8 @@
 @export (defconstant CS7       #o0000040)
 @export (defconstant CS8       #o0000060)
 @export (defconstant CSTOPB    #o0000100)
+@export (defconstant VMIN      #o0000006)
+@export (defconstant VTIME     #o0000005)
 
 (defconstant +NCCS+ 32)
 
@@ -105,13 +107,14 @@
    (oflag :initform 0 :initarg :oflag :accessor oflag)
    (cflag :initform 0 :initarg :cflag :accessor cflag)
    (lflag :initform 0 :initarg :lflag :accessor lflag)
-   (cc :initform () :initarg :cc :accessor cc)))
+   (cc :initform nil :initarg :cc :accessor cc)))
 
 (defun make-termios (iflag oflag cflag lflag cc)
-  (let ((cc 
-	 (loop for i from 0 below +NCCS+
-	    collect (mem-aref cc 'cc_t i))))
-    (make-instance '<termios> :iflag iflag :oflag oflag :cflag cflag :lflag lflag :cc cc)))
+  (loop for i from 0 below +NCCS+
+     with cc-array = (make-array +NCCS+ :element-type '(mod 32)) 
+     do (setf (aref cc-array i) (mem-aref cc 'cc_t i))
+     finally (return 
+	       (make-instance '<termios> :iflag iflag :oflag oflag :cflag cflag :lflag lflag :cc cc-array))))
 
 
 (defmacro with-errno-checking (&optional opts ffcall)
@@ -155,11 +158,11 @@
 	  (foreign-slot-value ptr 'ftermios 'c_cflag) (cflag termios)
 	  (foreign-slot-value ptr 'ftermios 'c_lflag) (lflag termios))
     (with-foreign-slots ((c_cc) ptr ftermios)
-      (loop for i below +NCCS+
-	 for el in (cc termios)
-	 do (setf (mem-aref c_cc 'cc_t i) el)))
+      (loop with el-array = (cc termios)
+	 for i below (min +NCCS+ (array-dimension el-array 0))
+	 do (setf (mem-aref c_cc 'cc_t i) (aref el-array i))))
     (with-errno-checking ()
-	(foreign-funcall "tcsetattr" :int fd :int (or actions 0) ftermios ptr :int))))
+      (foreign-funcall "tcsetattr" :int fd :int (or actions 0) ftermios ptr :int))))
 
 ;; TODO: Is there a better way of dealing with c varargs??
 @export
