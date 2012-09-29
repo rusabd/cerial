@@ -70,7 +70,7 @@
 @export (defconstant CSTOPB    #o0000100)
 @export (defconstant VMIN      #o0000006)
 @export (defconstant VTIME     #o0000005)
-
+@export (defconstant TCSANOW   #o0000000)
 (defconstant +NCCS+ 32)
 
 ;;;
