@@ -208,3 +208,8 @@
     (setf (slot-value s 'port) (port s))
     (open-serial s)))
 
+(defmacro with-serial ((serial port &rest args) &body body)
+  `(let ((,serial (make-serial ,port ,@args)))
+     (unwind-protect
+	  ,@body
+       (close-serial ,serial))))

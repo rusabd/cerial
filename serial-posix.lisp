@@ -6,17 +6,17 @@
   (:documentation "Serial port class POSIX implementation. Serial port configuration is done with termios and fcntl. Runs on Linux and many other Un*x like systems."))
 
 @export
-(defun make-serial-posix (&optional port 
-			  &key (baudrate 9600)
-			  (bytesize 8)
-			  (parity :PARITY-NONE)
-			  (stopbits 1)
-			  (timeout nil)
-			  (xonxoff nil)
-			  (rtscts nil)
-			  (write-timeout nil)
-			  (dsrdtr nil)
-			  (inter-char-timeout nil))
+(defun make-serial (&optional port 
+		    &key (baudrate 9600)
+		    (bytesize 8)
+		    (parity :PARITY-NONE)
+		    (stopbits 1)
+		    (timeout nil)
+		    (xonxoff nil)
+		    (rtscts nil)
+		    (write-timeout nil)
+		    (dsrdtr nil)
+		    (inter-char-timeout nil))
   (make-instance '<serial-posix>
 		 :port port
 		 :baudrate baudrate
@@ -92,10 +92,10 @@
 		:off ("INLCR" "IGNCR" "ICRNL" "IGNBRK"))
 
       (maybe-set-flag (unistd:iflag termios)
-		     :off ("PARMRK"))
+		      :off ("PARMRK"))
 
       (maybe-set-flag (unistd:iflag termios)
-		     :off ("IUCLC"))
+		      :off ("IUCLC"))
       
       ;; setup char length
       (set-flag (unistd:cflag termios)
@@ -116,7 +116,7 @@
 	(t (error 'value-error :text (format nil "Invalid stop bit spec: ~A" (stopbits s)))))
 
       ;; setup parity
-   
+      
       (set-flag (unistd:iflag termios)
 		:off ("INPCK" "ISTRIP"))
       (case (parity s)
@@ -158,9 +158,9 @@
 	(unless ispeed (set-custom-baud-rate s))
 	(unistd:cfsetispeed termios (symbol-value ispeed))
 	(unistd:cfsetospeed termios (symbol-value ospeed)))
- 
+      
       (unistd:tcsetattr (get-fd s) termios unistd:TCSANOW))))
-    
+
 ;; TODO: This strikes me as a little inefficient...
 (defmethod write-serial-byte ((s <serial-posix>) byte)
   (unistd:write (get-fd s) (make-array 1 :initial-element byte :element-type '(mod 32)) 1))
