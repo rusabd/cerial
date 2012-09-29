@@ -176,3 +176,8 @@
   (with-errno-checking ()
     (foreign-funcall "tcflush" :int fd :int queue-selector :int)))
 
+@export
+(defun cfsetispeed (termios speed))
+
+@export
+(defun cfsetospeed (termios speed))

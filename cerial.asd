@@ -6,7 +6,8 @@
   :author "Your Name <your.name@example.com>"
   :license "Specify license here"
   :depends-on (#:cl-annot 
-	       #+(not sbcl) #:cffi)
+	       #+(not sbcl) #:cffi
+	       #:alexandria)
   :components ((:file "package")
 	       #+(or linux unix) (:file "unistd")
                (:file "serial-base")

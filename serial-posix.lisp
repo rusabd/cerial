@@ -30,6 +30,7 @@
 		 :dsrdtr dsrdtr
 		 :inter-char-timeout inter-char-timeout))
 
+;; TODO: Will be different for different unixes
 (defmethod device ((s <serial-posix>) port)
   (declare (ignore s))
   (format nil "/dev/ttyS~A" port))
@@ -59,14 +60,8 @@
   (unless (get-fd s) (error 'serial-error :text "Port has to be open!"))
   (call-next-method s))
 
-(defun get-exported-symbol (symbol &optional (package :cl-user))
-  (multiple-value-bind (s e)
-      (find-symbol symbol package)
-    (when (and s (eql e :EXTERNAL)) s)))
-
-(defun curry-right (fun &rest args)
-	   (lambda (&rest more)
-	     (apply fun (append more args))))
+(defmethod set-custom-baud-rate ((s <serial-posix>))
+  (error 'value-error :text (format nil "Invalid baudrate: ~A" (baudrate s))))
 
 (defmethod configure-port ((s <serial-posix>))
   (let ((termios (unistd:tcgetattr (get-fd s)))
@@ -77,7 +72,7 @@
 				(logand ,flag (lognot (logior ,@(mapcar (curry-right 'find-symbol :unistd) off)))))))
 	       (maybe-set-flag (flag &key (on ()) (off ()) (err nil) (errtxt nil))
 		 (labels ((fn (res sym)
-			    (let ((sym (cerial::get-exported-symbol sym :unistd)))
+			    (let ((sym (get-exported-symbol sym :unistd)))
 			      (if sym
 				  (cons sym res)
 				  (and err (error err :text errtxt))))))
@@ -111,62 +106,63 @@
 	(7 (set-flag (unistd:cflag termios) :on ("CS7")))
 	(6 (set-flag (unistd:cflag termios) :on ("CS6")))
 	(5 (set-flag (unistd:cflag termios) :on ("CS5")))
-	(t (error 'value-error (format nil "Invalid char len: ~A" (bytesize s)))))
+	(t (error 'value-error :text (format nil "Invalid char len: ~A" (bytesize s)))))
 
       ;; setup stopbits
       
       (case (stopbits s)
-	(1 (set-flag (unistd:cflag termios) :off (unistd:CSTOPB)))
-	((or 2 1.5) (set-flag (unistd:cflag termios) :on (unistd:CSTOPB)))
+	(1 (set-flag (unistd:cflag termios) :off ("CSTOPB")))
+	((or 2 1.5) (set-flag (unistd:cflag termios) :on ("CSTOPB")))
 	(t (error 'value-error :text (format nil "Invalid stop bit spec: ~A" (stopbits s)))))
 
       ;; setup parity
    
-      (set-flag (termios iflag)
-		:off (unistd:INPCK unistd:ISTRIP))
+      (set-flag (unistd:iflag termios)
+		:off ("INPCK" "ISTRIP"))
       (case (parity s)
-	(:PARITY-NONE (set-flag (termios cflag) :off (unistd:PARENB unistd:PARODD)))
-	(:PARITY-EVEN (set-flag (termios cflag) :off (unistd:PARODD) :on (unistd:PARENB)))
-	(:PARITY-ODD (set-flag (termios cflag) :on (unistd:PARENB unistd:PARODD)))
+	(:PARITY-NONE (set-flag (unistd:cflag termios) :off ("PARENB" "PARODD")))
+	(:PARITY-EVEN (set-flag (unistd:cflag termios) :off ("PARODD") :on ("PARENB")))
+	(:PARITY-ODD (set-flag (unistd:cflag termios) :on ("PARENB" "PARODD")))
 	(t (error 'value-error :text (format nil "Invalid parity: ~A" (parity s)))))
 
       (if (get-exported-symbol "IXANY" :unistd)
 	  (if (xonxoff s)
-	      (set-flag (termios iflag)
-			:on (unistd:IXON unistd:IXOFF))
-	      (set-flag (termios iflag)
-			:off (unistd:IXON unistd:IXOFF unistd:IXANY)))
+	      (set-flag (unistd:iflag termios)
+			:on ("IXON" "IXOFF"))
+	      (set-flag (unistd:iflag termios)
+			:off ("IXON" "IXOFF" "IXANY")))
 	  (if (xonxoff s)
-	      (set-flag (termios iflag)
-			:on (unistd:IXON unistd:IXOFF))
-	      (set-flag (termios iflag)
-			:off (unistd:IXON unistd:IXOFF))))
+	      (set-flag (unistd:iflag termios)
+			:on ("IXON" "IXOFF"))
+	      (set-flag (unistd:iflag termios)
+			:off ("IXON" "IXOFF"))))
       
       (if (get-exported-symbol "CRTSCTS" :unistd)
 	  (if (rtscts s)
-	      (set-flag (termios iflag)
-			:on (unistd:CRTSCTS))
-	      (set-flag (termios iflag)
-			:off (unistd:CRTSCTS)))
+	      (set-flag (unistd:iflag termios)
+			:on ("CRTSCTS"))
+	      (set-flag (unistd:iflag termios)
+			:off ("CRTSCTS")))
 	  (when (get-exported-symbol "CNEW-RTSCTS" :unistd)
 	    (if (rtscts s)
-		(set-flag (termios iflag)
-			  :on (unistd:CNEW_RTSCTS))
-		(set-flag (termios iflag)
-			  :off (unistd:CNEW_RTSCTS)))))
+		(set-flag (unistd:iflag termios)
+			  :on ("CNEW_RTSCTS"))
+		(set-flag (unistd:iflag termios)
+			  :off ("CNEW_RTSCTS")))))
 
       (if (or (<= vtime 255) (>= vtime 0))
 	  (setf 
-	   (aref (termios-cc termios) VMIN) 1
-	   (aref (termios-cc termios) VTIME) vtime)
+	   (aref (unistd:cc termios) unistd:VMIN) 1
+	   (aref (unistd:cc termios) unistd:VTIME) vtime)
 	  (error 'value-error :text (format nil "Invalid parity: ~A" (parity s))))
       
             
       (let* ((ispeed (get-exported-symbol (format nil "B~A" (baudrate s))))
 	     (ospeed ispeed))
-	(unless ispeed (set-custom-baud-rate (baudrate s))))
-      
-      (unistd:tcsetattr (fd s) unistd:TCSANOW termios))	  
+	(unless ispeed (set-custom-baud-rate s))
+	(unistd:cfsetispeed termios ispeed)
+	(unistd:cfsetospeed termios ospeed))
+      (unistd:tcsetattr (get-fd s) unistd:TCSANOW termios))))
     
   
 	 

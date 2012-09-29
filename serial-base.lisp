@@ -10,6 +10,14 @@
 (defconstant +PARITIES+ '(:PARITY-NONE :PARITY-EVEN :PARITY-ODD :PARITY-MARK :PARITY-SPACE))
 (defconstant +STOPBITS+ '(1 1.5 2))
 
+(defun get-exported-symbol (symbol &optional (package :cl-user))
+  (multiple-value-bind (s e)
+      (find-symbol symbol package)
+    (when (and s (eql e :EXTERNAL)) s)))
+
+(defun curry-right (fun &rest args)
+  (lambda (&rest more)
+    (apply fun (append more args))))
 
 (define-condition value-error (error)
   ((text :initarg :text :reader text))
@@ -128,7 +136,8 @@
       (call-next-method)
       (error 'value-error :text (format nil "Not a valid parity: ~A" parity))))
 
-(defmethod (setf parity) :after (size (s <serial-base>))
+(defmethod (setf parity) :after (parity (s <serial-base>))
+  (declare (ignore parity))
   (maybe-configure-port s))
 
 (defmethod (setf stopbits) :around (bits (s <serial-base>))
