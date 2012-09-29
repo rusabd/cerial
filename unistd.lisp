@@ -14,6 +14,7 @@
 ;;;
 
 @export (defconstant CLOCAL    #o0004000)
+@export (defconstant CSIZE     #o0000060)
 @export (defconstant CREAD     #o0000200)
 @export (defconstant ECHO      #o0000010)
 @export (defconstant ECHOE     #o0000020)
@@ -22,6 +23,8 @@
 @export (defconstant ISIG      #o0000001)
 @export (defconstant ICANON    #o0000002)
 @export (defconstant INLCR     #o0000100)
+@export (defconstant ISTRIP    #o0000040)
+@export (defconstant INPCK     #o0000020)
 @export (defconstant IGNCR     #o0000200)
 @export (defconstant ICRNL     #o0000400)
 @export (defconstant IEXTEN    #o0100000)
@@ -84,6 +87,12 @@
 @export (defconstant VMIN      #o0000006)
 @export (defconstant VTIME     #o0000005)
 @export (defconstant TCSANOW   #o0000000)
+@export (defconstant PARENB    #o0000400)
+@export (defconstant PARODD    #o0001000)
+
+@export (defconstant IXANY     #o0004000)
+@export (defconstant IXOFF     #o0001000)
+@export (defconstant IXON      #o0002000)
 
 (defconstant +FD-SETSIZE+ 256)
 (defconstant +NBBY+ 8)
