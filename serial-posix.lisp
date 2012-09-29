@@ -161,12 +161,15 @@
  
       (unistd:tcsetattr (get-fd s) termios unistd:TCSANOW))))
     
-  
+;; TODO: This strikes me as a little inefficient...
 (defmethod write-serial-byte ((s <serial-posix>) byte)
-  (unistd:write (get-fd s) byte 1))
+  (unistd:write (get-fd s) (make-array 1 :initial-element byte :element-type '(mod 32)) 1))
 
 (defmethod write-serial-byte-seq ((s <serial-posix>) byte-seq)
-  (loop for byte in byte-seq
-     do (write-serial-byte s byte)))
+  (unistd:write (get-fd s) byte-seq (array-dimension byte-seq 0)))
 
+(defmethod read-serial-byte ((s <serial-posix>))
+  (aref (unistd:read (get-fd s) 1) 0))
 
+(defmethod read-serial-byte-seq ((s <serial-posix>) count)
+  (unistd:read (get-fd s) count))
