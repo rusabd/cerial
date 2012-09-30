@@ -9,7 +9,7 @@ WARNING! I'm still experimenting...Don't get used to the flavour just yet.
 (setq *sout* (make-serial "pseudo0"))
 
 ;; the other end
-(setq *sout* (make-serial "pseudo1"))
+(setq *sin* (make-serial "pseudo1"))
 
 ;; write some 
 (write-byte-seq *sout* (flexi-streams:string-to-octets "Hello World!"))
