@@ -6,17 +6,17 @@
   (:documentation "Serial port class POSIX implementation. Serial port configuration is done with termios and fcntl. Runs on Linux and many other Un*x like systems."))
 
 @export
-(defun make-serial (&optional port 
-		    &key (baudrate 9600)
-		    (bytesize 8)
-		    (parity :PARITY-NONE)
-		    (stopbits 1)
-		    (timeout nil)
-		    (xonxoff nil)
-		    (rtscts nil)
-		    (write-timeout nil)
-		    (dsrdtr nil)
-		    (inter-char-timeout nil))
+(defun make-serial-port (&optional port 
+                         &key (baudrate 9600)
+                           (bytesize 8)
+                           (parity :PARITY-NONE)
+                           (stopbits 1)
+                           (timeout nil)
+                           (xonxoff nil)
+                           (rtscts nil)
+                           (write-timeout nil)
+                           (dsrdtr nil)
+                           (inter-char-timeout nil))
   (make-instance '<serial-posix>
 		 :port port
 		 :baudrate baudrate
@@ -162,14 +162,18 @@
       (unistd:tcsetattr (get-fd s) termios unistd:TCSANOW))))
 
 ;; TODO: This strikes me as a little inefficient...
+@export
 (defmethod write-serial-byte ((s <serial-posix>) byte)
   (unistd:write (get-fd s) (make-array 1 :initial-element byte :element-type '(mod 32)) 1))
 
+@export
 (defmethod write-serial-byte-seq ((s <serial-posix>) byte-seq)
   (unistd:write (get-fd s) byte-seq (array-dimension byte-seq 0)))
 
+@export
 (defmethod read-serial-byte ((s <serial-posix>))
   (aref (unistd:read (get-fd s) 1) 0))
 
+@export
 (defmethod read-serial-byte-seq ((s <serial-posix>) count)
   (unistd:read (get-fd s) count))
