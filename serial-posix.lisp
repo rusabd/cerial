@@ -66,100 +66,86 @@
 (defmethod configure-port ((s <serial-posix>))
   (let ((termios (unistd:tcgetattr (get-fd s)))
 	(vtime (or (and (inter-char-timeout s) (floor (* 10 (inter-char-timeout s)))) 0)))
-    (macrolet ((set-flag (flag &key (on ()) (off ()))
-		 `(setf ,flag 
-			(logior ,@(mapcar (curry-right 'find-symbol :unistd) on) 
-				(logand ,flag (lognot (logior ,@(mapcar (curry-right 'find-symbol :unistd) off)))))))
-	       (maybe-set-flag (flag &key (on ()) (off ()) (err nil) (errtxt nil))
-		 (labels ((fn (res sym)
-			    (let ((sym (get-exported-symbol sym :unistd)))
-			      (if sym
-				  (cons sym res)
-				  (and err (error err :text errtxt))))))
-		   (let ((on (reduce #'fn on :initial-value nil))
-			 (off (reduce #'fn off :initial-value nil)))
-		     `(setf ,flag (logior ,@on (logand ,flag (lognot (logior ,@off)))))))))
-
-      ;; setup raw mode/ no echo/ binary	
-      (set-flag (unistd:cflag termios)
-		:on ("CLOCAL" "CREAD"))
-      (set-flag (unistd:lflag termios)
-		:off ("ICANON" "ECHO" "ECHOE" "ECHOK" "ECHONL" "ISIG" "IEXTEN"))
-      
-      (set-flag (unistd:oflag termios)
-		:off ("OPOST"))
-      (set-flag (unistd:iflag termios)
-		:off ("INLCR" "IGNCR" "ICRNL" "IGNBRK"))
-
-      (maybe-set-flag (unistd:iflag termios)
-		      :off ("PARMRK"))
-
-      (maybe-set-flag (unistd:iflag termios)
-		      :off ("IUCLC"))
-      
-      ;; setup char length
-      (set-flag (unistd:cflag termios)
-		:off ("CSIZE"))
-      
-      (case (bytesize s)
-	(8 (set-flag (unistd:cflag termios) :on ("CS8")))
-	(7 (set-flag (unistd:cflag termios) :on ("CS7")))
-	(6 (set-flag (unistd:cflag termios) :on ("CS6")))
-	(5 (set-flag (unistd:cflag termios) :on ("CS5")))
-	(t (error 'value-error :text (format nil "Invalid char len: ~A" (bytesize s)))))
-      
-      ;; setup stopbits
-      
-      (case (stopbits s)
-	(1 (set-flag (unistd:cflag termios) :off ("CSTOPB")))
-	((or 2 1.5) (set-flag (unistd:cflag termios) :on ("CSTOPB")))
-	(t (error 'value-error :text (format nil "Invalid stop bit spec: ~A" (stopbits s)))))
-
-      ;; setup parity
-      
-      (set-flag (unistd:iflag termios)
-		:off ("INPCK" "ISTRIP"))
-      (case (parity s)
-	(:PARITY-NONE (set-flag (unistd:cflag termios) :off ("PARENB" "PARODD")))
-	(:PARITY-EVEN (set-flag (unistd:cflag termios) :off ("PARODD") :on ("PARENB")))
-	(:PARITY-ODD (set-flag (unistd:cflag termios) :on ("PARENB" "PARODD")))
-	(t (error 'value-error :text (format nil "Invalid parity: ~A" (parity s)))))
-      (if (get-exported-symbol "IXANY" :unistd)
-	  (if (xonxoff s)
-	      (set-flag (unistd:iflag termios)
-			:on ("IXON" "IXOFF"))
-	      (set-flag (unistd:iflag termios)
-			:off ("IXON" "IXOFF" "IXANY")))
-	  (if (xonxoff s)
-	      (set-flag (unistd:iflag termios)
-			:on ("IXON" "IXOFF"))
-	      (set-flag (unistd:iflag termios)
-			:off ("IXON" "IXOFF"))))
-      (if (get-exported-symbol "CRTSCTS" :unistd)
+    ;; setup raw mode/ no echo/ binary	
+    (set-flag (unistd:cflag termios)
+	      :on ("CLOCAL" "CREAD"))
+    (set-flag (unistd:lflag termios)
+	      :off ("ICANON" "ECHO" "ECHOE" "ECHOK" "ECHONL" "ISIG" "IEXTEN"))
+    
+    (set-flag (unistd:oflag termios)
+	      :off ("OPOST"))
+    (set-flag (unistd:iflag termios)
+	      :off ("INLCR" "IGNCR" "ICRNL" "IGNBRK"))
+    
+    (maybe-set-flag (unistd:iflag termios)
+		    :off ("PARMRK"))
+    
+    (maybe-set-flag (unistd:iflag termios)
+		    :off ("IUCLC"))
+    
+    ;; setup char length
+    (set-flag (unistd:cflag termios)
+	      :off ("CSIZE"))
+    
+    (case (bytesize s)
+      (8 (set-flag (unistd:cflag termios) :on ("CS8")))
+      (7 (set-flag (unistd:cflag termios) :on ("CS7")))
+      (6 (set-flag (unistd:cflag termios) :on ("CS6")))
+      (5 (set-flag (unistd:cflag termios) :on ("CS5")))
+      (t (error 'value-error :text (format nil "Invalid char len: ~A" (bytesize s)))))
+    
+    ;; setup stopbits
+    
+    (case (stopbits s)
+      (1 (set-flag (unistd:cflag termios) :off ("CSTOPB")))
+      ((or 2 1.5) (set-flag (unistd:cflag termios) :on ("CSTOPB")))
+      (t (error 'value-error :text (format nil "Invalid stop bit spec: ~A" (stopbits s)))))
+    
+    ;; setup parity
+    
+    (set-flag (unistd:iflag termios)
+	      :off ("INPCK" "ISTRIP"))
+    (case (parity s)
+      (:PARITY-NONE (set-flag (unistd:cflag termios) :off ("PARENB" "PARODD")))
+      (:PARITY-EVEN (set-flag (unistd:cflag termios) :off ("PARODD") :on ("PARENB")))
+      (:PARITY-ODD (set-flag (unistd:cflag termios) :on ("PARENB" "PARODD")))
+      (t (error 'value-error :text (format nil "Invalid parity: ~A" (parity s)))))
+    (if (get-exported-symbol "IXANY" :unistd)
+	(if (xonxoff s)
+	    (set-flag (unistd:iflag termios)
+		      :on ("IXON" "IXOFF"))
+	    (set-flag (unistd:iflag termios)
+		      :off ("IXON" "IXOFF" "IXANY")))
+	(if (xonxoff s)
+	    (set-flag (unistd:iflag termios)
+		      :on ("IXON" "IXOFF"))
+	    (set-flag (unistd:iflag termios)
+		      :off ("IXON" "IXOFF"))))
+    (if (get-exported-symbol "CRTSCTS" :unistd)
+	(if (rtscts s)
+	    (set-flag (unistd:iflag termios)
+		      :on ("CRTSCTS"))
+	    (set-flag (unistd:iflag termios)
+		      :off ("CRTSCTS")))
+	(when (get-exported-symbol "CNEW-RTSCTS" :unistd)
 	  (if (rtscts s)
 	      (set-flag (unistd:iflag termios)
-			:on ("CRTSCTS"))
+			:on ("CNEW_RTSCTS"))
 	      (set-flag (unistd:iflag termios)
-			:off ("CRTSCTS")))
-	  (when (get-exported-symbol "CNEW-RTSCTS" :unistd)
-	    (if (rtscts s)
-		(set-flag (unistd:iflag termios)
-			  :on ("CNEW_RTSCTS"))
-		(set-flag (unistd:iflag termios)
-			  :off ("CNEW_RTSCTS")))))
-      (if (or (<= vtime 255) (>= vtime 0))
-	  (setf 
-	   (aref (unistd:cc termios) unistd:VMIN) 1
-	   (aref (unistd:cc termios) unistd:VTIME) vtime)
-	  (error 'value-error :text (format nil "Invalid timeout: ~A" vtime)))
-      
-      (let* ((ispeed (get-exported-symbol (format nil "B~A" (baudrate s)) :unistd))
-	     (ospeed ispeed))
-	(unless ispeed (set-custom-baud-rate s))
-	(unistd:cfsetispeed termios (symbol-value ispeed))
-	(unistd:cfsetospeed termios (symbol-value ospeed)))
-      
-      (unistd:tcsetattr (get-fd s) termios unistd:TCSANOW))))
+			:off ("CNEW_RTSCTS")))))
+    (if (or (<= vtime 255) (>= vtime 0))
+	(setf 
+	 (aref (unistd:cc termios) unistd:VMIN) 1
+	 (aref (unistd:cc termios) unistd:VTIME) vtime)
+	(error 'value-error :text (format nil "Invalid timeout: ~A" vtime)))
+    
+    (let* ((ispeed (get-exported-symbol (format nil "B~A" (baudrate s)) :unistd))
+	   (ospeed ispeed))
+      (unless ispeed (set-custom-baud-rate s))
+      (unistd:cfsetispeed termios (symbol-value ispeed))
+      (unistd:cfsetospeed termios (symbol-value ospeed)))
+    
+    (unistd:tcsetattr (get-fd s) termios unistd:TCSANOW)))
 
 ;; TODO: This strikes me as a little inefficient...
 @export

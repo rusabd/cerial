@@ -1,6 +1,7 @@
 ;;;; cerial.lisp
 
 (in-package #:cerial)
+(annot:enable-annot-syntax)
 
 ;;; "cerial" goes here. Hacks and glory await!
 
@@ -213,3 +214,20 @@
      (unwind-protect
 	  ,@body
        (close-serial ,serial))))
+
+@export
+(defmacro set-flag (flag &key (on ()) (off ()))
+  `(setf ,flag 
+	 (logior ,@(mapcar (curry-right 'find-symbol :unistd) on) 
+		 (logand ,flag (lognot (logior ,@(mapcar (curry-right 'find-symbol :unistd) off)))))))
+
+@export
+(defmacro maybe-set-flag (flag &key (on ()) (off ()) (err nil) (errtxt nil))
+  (labels ((fn (res sym)
+	     (let ((sym (get-exported-symbol sym :unistd)))
+	       (if sym
+		   (cons sym res)
+		   (and err (error err :text errtxt))))))
+    (let ((on (reduce #'fn on :initial-value nil))
+	  (off (reduce #'fn off :initial-value nil)))
+      `(setf ,flag (logior ,@on (logand ,flag (lognot (logior ,@off))))))))
