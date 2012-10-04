@@ -41,6 +41,7 @@
   (call-next-method)
   (configure-port s))
 
+@export
 (defmethod open-serial ((s <serial-posix>))
   (let* ((fd (unistd:open
 	      (port s)
@@ -49,6 +50,7 @@
 		      unistd:ONONBLOCK))))
     (setf (slot-value s 'fd) fd)))
 
+@export
 (defmethod close-serial ((s <serial-posix>))
   (let ((fd (get-fd s)))
     (when fd
@@ -163,3 +165,5 @@
 @export
 (defmethod read-serial-byte-seq ((s <serial-posix>) count)
   (unistd:read (get-fd s) count))
+
+;; TODO: Blocking versions using select
