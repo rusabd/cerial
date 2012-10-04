@@ -180,8 +180,11 @@
        (with-errno-checking ()
 	 (foreign-funcall "write" :int fd :pointer fbuf :int count :int))))
 
-(defctype size-t :uint)
-(defctype ssize-t size-t)
+#+(or X86-64 X86_64 64-BIT-HOST) (defctype size-t :ulong)
+#-(or X86-64 X86_64 64-BIT-HOST) (defctype size-t :uint)
+
+#+(or X86-64 X86_64 64-BIT-HOST) (defctype ssize-t :long)
+#-(or X86-64 X86_64 64-BIT-HOST) (defctype ssize-t :int)
 
 @export
 (defun read (fd count)
