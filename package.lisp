@@ -1,7 +1,7 @@
 ;;;; package.lisp
 
 (defpackage #:cerial
-  (:use #:cl))
+  (:use #:cl #:annot.class))
 
 
 #+(or linux unix)

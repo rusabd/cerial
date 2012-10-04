@@ -1,6 +1,7 @@
 (in-package #:cerial)
 (annot:enable-annot-syntax)
 
+@export-accessors
 (defclass <serial-posix> (<serial-base>)
   ()
   (:documentation "Serial port class POSIX implementation. Serial port configuration is done with termios and fcntl. Runs on Linux and many other Un*x like systems."))

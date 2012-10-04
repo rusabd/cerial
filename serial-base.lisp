@@ -29,7 +29,8 @@
   ((text :initarg :text :reader text))
   (:report (lambda (condition stream)
 	     (format stream (text condition)))))
- 
+
+@export-accessors
 (defclass <serial-base> ()
   ((fd :initform nil :reader get-fd)
    (port :initform nil
@@ -189,7 +190,7 @@
   (declare (ignore timeout))
   (maybe-configure-port s))
 
-
+@export
 (defmethod print-object ((s <serial-base>) stream)
   (format stream "~A[open=~A](port=~A, baudrate=~A, bytesize=~A, parity=~A, stopbits=~A, timeout=~A, xonxoff=~A, rtscts=~A, dsrdtr=~A)"
 	  (type-of s)
@@ -209,6 +210,7 @@
     (setf (slot-value s 'port) (port s))
     (open-serial s)))
 
+@export
 (defmacro with-serial ((serial port &rest args) &body body)
   `(let ((,serial (make-serial ,port ,@args)))
      (unwind-protect
