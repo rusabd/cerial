@@ -68,3 +68,22 @@
   
 (cffi:defcfun (win32-close-handle "CloseHandle" :convention :stdcall) bool
   (object :pointer))
+
+(cffi:defcfun (win32-read-file "ReadFile" :convention :stdcall) bool
+  (file :pointer)
+  (buffer :pointer)
+  (size word)
+  (readBytes (:pointer word))
+  (overlapped :pointer))
+
+(cffi:defcfun (win32-write-file "WriteFile" :convention :stdcall) bool
+  (file :pointer)
+  (buffer :pointer)
+  (size word)
+  (writtenBytes (:pointer word))
+  (overlapped-p :pointer))
+
+(defmacro win32-confirm (form success fail)
+  `(if (zerop ,form)
+       ,fail
+       ,success))

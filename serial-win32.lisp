@@ -30,7 +30,7 @@
 
 (defmethod device ((s <serial-win32>) port)
   (declare (ignore s))
-  (format nil "\\\\.\\COM~A" port))
+  (format nil "\\\\.\\~A" port))
 
 
 (defmethod open-serial ((s <serial-win32>))
@@ -60,20 +60,27 @@
 (defmethod configure-port ((s <serial-win32>))
   (error "not implemented"))
 
-
-(defmethod write-serial-byte ((s <serial-win32>) byte)
-  (error "not implemented"))
-
-
 (defmethod write-serial-byte-seq ((s <serial-win32>) byte-seq)
-  (error "not implemented"))
-
-
-(defmethod read-serial-byte ((s <serial-win32>))
-  (error "not implemented"))
-
+  (let ((seq-size (length byte-seq)))
+    (cffi:with-foreign-object (buffer :char seq-size)
+      (cffi:with-foreign-object (writtenbytes 'word)	
+	(with-slots (handler) s
+	  (dotimes (idx seq-size)
+	    (setf (cffi:mem-aref buffer :char idx) (aref byte-seq idx)))
+	  (win32-confirm (win32-write-file handler buffer seq-size writtenbytes (cffi:null-pointer))
+			 (cffi:mem-ref writtenbytes 'word)
+			 (error "could not write to device")))))))
 
 (defmethod read-serial-byte-seq ((s <serial-win32>) count)
-  (error "not implemented"))
-
+  (cffi:with-foreign-object (buffer :char count)
+    (cffi:with-foreign-object (readbytes 'word)
+      (with-slots (handler) s
+	  (win32-confirm (win32-read-file handler buffer count readbytes (cffi:null-pointer))
+			 (loop with size = (cffi:mem-ref readbytes 'word)
+			    with result = (make-array size :element-type '(integer 0 255))
+			    for idx below size
+			    do (setf (aref result idx) (cffi:mem-aref buffer :char  idx))
+			    finally (return result))
+			 (error "could not read from device"))))))
+  
 ;; TODO: Blocking versions using select
