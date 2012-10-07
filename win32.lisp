@@ -5,6 +5,33 @@
 (defconstant +OPEN_EXISTING+ 3)
 
 
+(defconstant +ONESTOPBIT+    0)
+(defconstant +ONE5STOPBITS+  1)
+(defconstant +TWOSTOPBITS+   2)
+
+(defconstant +CBR_110+             110)
+(defconstant +CBR_300+             300)
+(defconstant +CBR_600+             600)
+(defconstant +CBR_1200+            1200)
+(defconstant +CBR_2400+            2400)
+(defconstant +CBR_4800+            4800)
+(defconstant +CBR_9600+            9600)
+(defconstant +CBR_14400+           14400)
+(defconstant +CBR_19200+           19200)
+(defconstant +CBR_38400+           38400)
+(defconstant +CBR_56000+           56000)
+(defconstant +CBR_57600+           57600)
+(defconstant +CBR_115200+          115200)
+(defconstant +CBR_128000+          128000)
+(defconstant +CBR_256000+          256000)
+
+
+(defconstant +NOPARITY+            0)
+(defconstant +ODDPARITY+           1)
+(defconstant +EVENPARITY+          2)
+(defconstant +MARKPARITY+          3)
+(defconstant +SPACEPARITY+         4)
+
 (cffi:load-foreign-library "kernel32")
 
 
@@ -61,6 +88,10 @@
   (file :pointer)
   (dcb (:pointer dcb)))
 
+(cffi:defcfun (win32-get-comm-state "GetCommState" :convention :stdcall) bool
+  (file :pointer)
+  (dcb (:pointer dcb)))
+
 (cffi:defcfun (win32-memset "memset") :pointer
   (dest :pointer)
   (fill :int)
@@ -82,6 +113,9 @@
   (size word)
   (writtenBytes (:pointer word))
   (overlapped-p :pointer))
+
+(defun valid-pointer-p (pointer)
+  (not (cffi:pointer-eq pointer (cffi:make-pointer #xFFFFFFFF))))
 
 (defmacro win32-confirm (form success fail)
   `(if (zerop ,form)
