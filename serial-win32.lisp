@@ -100,6 +100,11 @@
       (win32-onerror (win32-set-comm-state fd ptr)
 	(error 'serial-error :text "SetCommState failed")))))
 
+
+@export
+(defmethod write-serial-byte ((s <serial-win32>) byte)
+  (write-serial-byte-seq s (make-array 1 :initial-element byte)))
+
 @export
 (defmethod write-serial-byte-seq ((s <serial-win32>) byte-seq)
   (let ((seq-size (length byte-seq)))
@@ -111,6 +116,10 @@
 	  (win32-confirm (win32-write-file fd buffer seq-size writtenbytes (cffi:null-pointer))
 			 (cffi:mem-ref writtenbytes 'word)
 			 (error 'serial-error :text "could not write to device")))))))
+
+@export
+(defmethod read-serial-byte ((s <serial-win32>))
+  (aref (read-serial-byte-seq s 1)))
 
 @export
 (defmethod read-serial-byte-seq ((s <serial-win32>) count)
