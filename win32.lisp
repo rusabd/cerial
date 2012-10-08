@@ -34,7 +34,6 @@
 
 (cffi:load-foreign-library "kernel32")
 
-
 (cffi:defbitfield dcb-flags
   fBinary;     /* Binary Mode (skip EOF check)    */
   fParity;     /* Enable parity checking          */
@@ -121,3 +120,9 @@
   `(if (zerop ,form)
        ,fail
        ,success))
+
+(defmacro win32-onerror (form &body error-form)
+  `(win32-confirm ,form
+		  t
+		  (progn
+		    ,@error-form)))
