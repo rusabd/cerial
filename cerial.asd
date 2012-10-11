@@ -10,8 +10,8 @@
 	       #:alexandria)
   :components ((:file "package")
 	       #+(or linux unix) (:file "unistd")
-	       #+mswindows (:file "win32")
+	       #+(or windows mswindows) (:file "win32")
                (:file "serial-base")
 	       #+(or linux unix) (:file "serial-posix")
-	       #+mswindows (:file "serial-win32")))
+	       #+(or windows mswindows) (:file "serial-win32")))
 
