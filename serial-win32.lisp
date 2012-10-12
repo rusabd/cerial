@@ -2,21 +2,26 @@
 (annot:enable-annot-syntax)
 
 @export-accessors
-(defclass <serial-win32> (<serial-base>) ()
-  (:documentation "Serial port class WIN32 implementation."))
+(defclass <serial-win32> (<serial-base>)
+  ((buffer-size :initform nil
+		:accessor buffer-size
+		:initarg :buffer-size
+		:documentation "The recommended size of the device's internal input buffer, in bytes"))
+   (:documentation "Serial port class WIN32 implementation."))
 
 @export
 (defun make-serial-port (&optional port 
                          &key (baudrate 9600)
-                           (bytesize 8)
-                           (parity :PARITY-NONE)
-                           (stopbits 1)
-                           (timeout nil)
-                           (xonxoff nil)
-                           (rtscts nil)
-                           (write-timeout nil)
-                           (dsrdtr nil)
-                           (inter-char-timeout nil))
+			 (bytesize 8)
+			 (parity :PARITY-NONE)
+			 (stopbits 1)
+			 (timeout nil)
+			 (xonxoff nil)
+			 (rtscts nil)
+			 (write-timeout nil)
+			 (dsrdtr nil)
+			 (inter-char-timeout nil)
+			 (buffer-size nil))
   (make-instance '<serial-win32>
 		 :port port
 		 :baudrate baudrate
@@ -28,7 +33,8 @@
 		 :rtscts rtscts
 		 :write-timeout write-timeout
 		 :dsrdtr dsrdtr
-		 :inter-char-timeout inter-char-timeout))
+		 :inter-char-timeout inter-char-timeout
+		 :buffer-size buffer-size))
 
 (defmethod device ((s <serial-win32>) port)
   (declare (ignore s))
@@ -72,9 +78,12 @@
 @export
 (defmethod open-serial ((s <serial-win32>))
   (let* ((null (cffi:null-pointer))
-	 (handler (win32-create-file (device s (port s)) (logxor +GENERIC_READ+ +GENERIC_WRITE+) 0 null +OPEN_EXISTING+ 0 null)))
+	 (handler (win32-create-file (device s (port s)) (logxor +GENERIC_READ+ +GENERIC_WRITE+) 0 null +OPEN_EXISTING+ (logxor +FILE_ATTRIBUTE_NORMAL+ +FILE_FLAG_OVERLAPPED+) null)))
     (unless (valid-pointer-p handler)
-      (error 'serial-error :text "CreateFile failed"))    
+      (error 'serial-error :text "CreateFile failed"))
+    (when (buffer-size s) 
+      (win32-onerror (win32-setup-comm handler (buffer-size s))
+	(error 'serial-error :text "SetupComm failed")))
     (setf (slot-value s 'fd) handler)))
 
 @export

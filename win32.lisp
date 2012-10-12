@@ -2,7 +2,10 @@
 
 (defconstant +GENERIC_READ+  #x80000000)
 (defconstant +GENERIC_WRITE+ #x40000000)
+(defconstant +FILE_ATTRIBUTE_NORMAL+ #x80)
+(defconstant +FILE_FLAG_OVERLAPPED+ #x40000000)
 (defconstant +OPEN_EXISTING+ 3)
+
 
 
 (defconstant +ONESTOPBIT+    0)
@@ -82,6 +85,11 @@
   (creation-disposition :uint32)
   (flags-and-attributes :uint32) 
   (template-file :pointer))
+
+(cffi:defcfun (win32-setup-comm "SetupComm" :convention :stdcall) bool
+  (file :pointer)
+  (dwInQueue dword)
+  (dwOutQueue dword))
 
 (cffi:defcfun (win32-set-comm-state "SetCommState" :convention :stdcall) bool
   (file :pointer)
