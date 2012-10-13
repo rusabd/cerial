@@ -37,6 +37,19 @@
 (defconstant +MARKPARITY+          3)
 (defconstant +SPACEPARITY+         4)
 
+(defconstant +RTS_CONTROL_DISABLE+   0)
+(defconstant +RTS_CONTROL_ENABLE+    1)
+(defconstant +RTS_CONTROL_HANDSHAKE+ 2)
+(defconstant +RTS_CONTROL_TOGGLE+    3)
+(defconstant +SETRTS+                3)
+(defconstant +CLRRTS+                4)
+
+(defconstant +DTR_CONTROL_DISABLE+   0)
+(defconstant +DTR_CONTROL_ENABLE+    1)
+(defconstant +DTR_CONTROL_HANDSHAKE+ 2)
+(defconstant +SETDTR+                5)
+(defconstant +CLRDTR+                6)
+
 (cffi:load-foreign-library "kernel32")
   
 (cffi:defctype dword :uint32)
@@ -92,6 +105,10 @@
   (file :pointer)
   (dwInQueue dword)
   (dwOutQueue dword))
+
+(cffi:defcfun (win32-escape-comm-function "EscapeCommFunction" :convention :stdcall) bool
+  (file :pointer)
+  (escape dword))
 
 (cffi:defcfun (win32-set-comm-timeouts "SetCommTimeouts" :convention :stdcall) bool
   (file :pointer)

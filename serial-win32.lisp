@@ -6,22 +6,37 @@
   ((buffer-size :initform nil
 		:accessor buffer-size
 		:initarg :buffer-size
-		:documentation "The recommended size of the device's internal input buffer, in bytes"))
+		:documentation "The recommended size of the device's internal input buffer, in bytes")
+   (rts-state :initform +RTS_CONTROL_ENABLE+
+	      :accessor rts-state
+	      :initarg :rts-state
+	      :documentation "Terminal status line: Request to Send")
+   (dtr-state :initform +DTR_CONTROL_ENABLE+
+	      :accessor dtr-state
+	      :initarg :dtr-state
+	      :documentation "Terminal status line: Data Terminal Ready")
+   (rts-toggle :initform nil
+	       :accessor rts-toggle
+	       :initarg :rts-toggle
+	       :documentation "RTS toggle control setting"))
    (:documentation "Serial port class WIN32 implementation."))
 
 @export
 (defun make-serial-port (&optional port 
                          &key (baudrate 9600)
-			 (bytesize 8)
-			 (parity :PARITY-NONE)
-			 (stopbits 1)
-			 (timeout nil)
-			 (xonxoff nil)
-			 (rtscts nil)
-			 (write-timeout nil)
-			 (dsrdtr nil)
-			 (inter-char-timeout nil)
-			 (buffer-size nil))
+			   (bytesize 8)
+			   (parity :PARITY-NONE)
+			   (stopbits 1)
+			   (timeout nil)
+			   (xonxoff nil)
+			   (rtscts nil)
+			   (write-timeout nil)
+			   (dsrdtr nil)
+			   (inter-char-timeout nil)
+			   (buffer-size nil)
+			   (rts-state +RTS_CONTROL_ENABLE+)
+			   (dtr-state +DTR_CONTROL_ENABLE+)
+			   (rts-toggle nil))
   (make-instance '<serial-win32>
 		 :port port
 		 :baudrate baudrate
@@ -34,7 +49,10 @@
 		 :write-timeout write-timeout
 		 :dsrdtr dsrdtr
 		 :inter-char-timeout inter-char-timeout
-		 :buffer-size buffer-size))
+		 :buffer-size buffer-size
+		 :rts-state rts-state
+		 :dtr-state dtr-state
+		 :rts-toggle rts-toggle))
 
 (defmethod device ((s <serial-win32>) port)
   (declare (ignore s))
@@ -130,7 +148,7 @@
 	      (error 'serial-error :text "SetCommTimeouts failed"))))))))
 
 (defmethod configure-port ((s <serial-win32>))
-  (with-slots (fd xonxoff dsrdtr baudrate bytesize stopbits parity) s
+  (with-slots (fd xonxoff dsrdtr baudrate bytesize stopbits parity rtscts dtr-state rts-state rts-toggle) s
     (cffi:with-foreign-object (ptr 'dcb)
       (win32-memset ptr 0 (cffi:foreign-type-size 'dcb))
       (cffi:with-foreign-slots ((DCBlength) ptr dcb)
@@ -165,6 +183,16 @@
 	      fAbortOnError 0
 	      XonChar       +XON+
 	      XoffChar      +XOFF+)
+	 (cond 
+            (rtscts (setf fRtsControl +RTS_CONTROL_HANDSHAKE+))
+            (rts-toggle (setf fRtsControl +RTS_CONTROL_TOGGLE+))
+            (t (setf fRtsControl rts-state)))
+          (if dsrdtr
+              (setf fDtrControl +DTR_CONTROL_HANDSHAKE+)
+              (setf fDtrControl dtr-state))
+          (if rts-toggle
+              (setf fOutxCtsFlow 0)
+              (setf fOutxCtsFlow rtscts))
 	(win32-onerror (win32-set-comm-state fd ptr)
 	  (error 'serial-error :text "SetCommState failed"))))))
 
@@ -186,6 +214,40 @@
 			 (error 'serial-error :text "could not write to device")))))))
 
 @export
+(defmethod (setf rts-state) :around (enabledp (s <serial-win32>))
+  (if enabledp
+      (call-next-method +RTS_CONTROL_ENABLE+ s)
+      (call-next-method +RTS_CONTROL_DISABLE+ s)))
+
+@export
+(defmethod (setf rts-state) :after (enabledp (s <serial-win32>))
+  (when (openp s)
+    (with-slots (fd) s
+      (if enabledp
+	  (win32-escape-comm-function fd +SETRTS+)
+	  (win32-escape-comm-function fd +CLRRTS+)))))
+
+@export
+(defmethod (setf dtr-state) :around (enabledp (s <serial-win32>))
+  (if enabledp
+      (call-next-method +DTR_CONTROL_ENABLE+ s)
+      (call-next-method +DTR_CONTROL_DISABLE+ s)))x
+
+@export
+(defmethod (setf dtr-state) :after (enabledp (s <serial-win32>))
+  (when (openp s)
+    (with-slots (fd) s
+      (if enabledp
+	  (win32-escape-comm-function fd +SETDTR+)
+	  (win32-escape-comm-function fd +CLRDTR+)))))
+
+@export
+(defmethod (setf str-toggle) :after (enabledp (s <serial-win32>))
+  (declare (ignore enabledp))
+  (when (openp s)
+    (configure-port s)))
+
+@export
 (defmethod read-serial-byte ((s <serial-win32>))
   (aref (read-serial-byte-seq s 1)))
 
@@ -201,3 +263,9 @@
 			    do (setf (aref result idx) (cffi:mem-aref buffer :char  idx))
 			    finally (return result))
 			 (error 'serial-error :text "could not read from device"))))))
+
+@export
+(defmethod print-object :after ((s <serial-base>) stream)
+  (with-slots (buffer-size rts-state rts-toggle dtr-toggle) s
+    (format stream ", buffer-size: ~A, rts-state: ~A, rts-toggle: ~A, dtr-state: ~A"
+	    buffer-size rts-state rts-toggle dtr-toggle)))

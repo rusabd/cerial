@@ -198,7 +198,7 @@
 
 @export
 (defmethod print-object ((s <serial-base>) stream)
-  (format stream "~A[open=~A](port=~A, baudrate=~A, bytesize=~A, parity=~A, stopbits=~A, timeout=~A, xonxoff=~A, rtscts=~A, dsrdtr=~A)"
+  (format stream "~A[open=~A]:port=~A, baudrate=~A, bytesize=~A, parity=~A, stopbits=~A, timeout=~A, xonxoff=~A, rtscts=~A, dsrdtr=~A"
 	  (type-of s)
 	  (when (get-fd s) T)
 	  (port s)
@@ -215,6 +215,10 @@
   (when (port s)
     (setf (slot-value s 'port) (port s))
     (open-serial s)))
+
+@export
+(defmethod openp ((s <serial-base>))
+  (get-fd s))
 
 @export
 (defmacro with-serial ((serial port &rest args) &body body)
@@ -239,3 +243,4 @@
     (let ((on (reduce #'fn on :initial-value nil))
 	  (off (reduce #'fn off :initial-value nil)))
       `(setf ,flag (logior ,@on (logand ,flag (lognot (logior ,@off))))))))
+
