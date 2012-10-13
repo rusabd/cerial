@@ -92,7 +92,7 @@
     (win32-close-handle fd)))
 
 ;; TODO: Not done yet, timeouts needs to be marshalled
-(defmethod set-timeout ((s <serial-win32>))
+(defmethod set-timeouts ((s <serial-win32>))
   "Set Windows timeout values; returns a tuple with the following items:
   read-interval-timeout, read-total-timeout-multiplier, read-total-timeout-constant, write-total-timeout-multiplier, write-total-timeout-constant"
   (let ((timeout (timeout s))
