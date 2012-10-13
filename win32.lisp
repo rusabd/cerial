@@ -77,6 +77,13 @@
   (EvtChar :char);         /* Received Event character        */
   (wReserved1 word));      /* Fill for now.                   */
 
+(cffi:defcstruct commtimeouts
+  (ReadIntervalTimeout dword)
+  (ReadTotalTimeoutMultiplier dword)
+  (ReadTotalTimeoutConstant dword)
+  (WriteTotalTimeoutMultiplier dword)
+  (WriteTotalTimeoutConstant dword))
+
 (cffi:defcfun (win32-create-file "CreateFileA" :convention :stdcall) :pointer 
   (filename :string)  
   (desired-access :uint32)  
@@ -93,7 +100,7 @@
 
 (cffi:defcfun (win32-set-comm-timeouts "SetCommTimeouts" :convention :stdcall) bool
   (file :pointer)
-  (timeouts :pointer))
+  (timeouts (:pointer commtimeouts)))
 
 (cffi:defcfun (win32-set-comm-state "SetCommState" :convention :stdcall) bool
   (file :pointer)
