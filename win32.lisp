@@ -6,7 +6,7 @@
 (defconstant +FILE_FLAG_OVERLAPPED+ #x40000000)
 (defconstant +OPEN_EXISTING+ 3)
 
-
+(defconstant +MAXDWORD+ 4294967295)
 
 (defconstant +ONESTOPBIT+    0)
 (defconstant +ONE5STOPBITS+  1)
@@ -90,6 +90,10 @@
   (file :pointer)
   (dwInQueue dword)
   (dwOutQueue dword))
+
+(cffi:defcfun (win32-set-comm-timeouts "SetCommTimeouts" :convention :stdcall) bool
+  (file :pointer)
+  (timeouts :pointer))
 
 (cffi:defcfun (win32-set-comm-state "SetCommState" :convention :stdcall) bool
   (file :pointer)

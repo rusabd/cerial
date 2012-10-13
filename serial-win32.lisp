@@ -91,6 +91,30 @@
   (with-slots (fd) s
     (win32-close-handle fd)))
 
+;; TODO: Not done yet, timeouts needs to be marshalled
+(defmethod set-timeouts ((s <serial-win32>))
+  "Set Windows timeout values; returns a tuple with the following items:
+  read-interval-timeout, read-total-timeout-multiplier, read-total-timeout-constant, write-total-timeout-multiplier, write-total-timeout-constant"
+  (let ((timeout (timeout s))
+        (inter-char-timeout (inter-char-timeout s)))
+    (flet ((read-timeouts (timeout)
+             (cond
+               ((not timeout) `(0 0 0 0 0))
+               ((zerop timeout) `(,+MAXDWORD+ 0 0 0 0))
+               (t `(0 0 ,(ceiling (* timeout 1000)) 0 0))))
+           (inter-char-timeouts (timeouts)
+             (destructuring-bind (nil &rest x) timeouts
+               (if (and (\= timeout 0) inter-char-timeout)
+                   (cons (ceiling (* inter-char-timeout 1000)) x))))
+           (write-timeouts (timeouts)
+             (destructuring-bind ((a b c &rest nil)) timeouts
+               (if (zerop (write-timeout s)) 
+                   `(,a ,b ,c 0 ,+MAXDWORD+)
+                   `(,a ,b ,c 0 ,(ceiling (* (write-timeout s) 1000)))))))
+      (let ((timeouts (write-timeouts
+                      (inter-char-timeouts
+                       (read-timeouts timeout)))))
+        (win32-set-comm-timeouts (get-fd s) timeouts)))))
 
 (defmethod configure-port ((s <serial-win32>))
   (with-slots (fd) s
