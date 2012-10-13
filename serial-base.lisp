@@ -196,6 +196,13 @@
   (declare (ignore timeout))
   (maybe-configure-port s))
 
+(defmethod read-serial-byte :before ((s <serial-base>))
+  (unless (openp s) (error 'serial-error :text (format nil "Port ~A not open." (port s)))))
+
+(defmethod read-serial-byte-seq :before ((s <serial-base>) count)
+  (declare (ignore count))
+  (unless (openp s) (error 'serial-error :text (format nil "Port ~A not open." (port s)))))
+
 @export
 (defmethod print-object ((s <serial-base>) stream)
   (format stream "~A[open=~A]:port=~A, baudrate=~A, bytesize=~A, parity=~A, stopbits=~A, timeout=~A, xonxoff=~A, rtscts=~A, dsrdtr=~A"

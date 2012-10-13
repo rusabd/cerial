@@ -92,6 +92,37 @@
   (WriteTotalTimeoutMultiplier dword)
   (WriteTotalTimeoutConstant dword))
 
+(cffi:defcstruct comstat
+  (fCtsHold dword)
+  (fDsrHold  dword)
+  (fRlsdHold dword)
+  (fXoffHold dword)
+  (fXoffSent dword)
+  (fEof dword)
+  (fTxim dword)
+  (fReserved dword)
+  (cbInQue dword)
+  (cbOutQue dword))
+
+(cffi:defctype pvoid (:pointer :void)) 
+(cffi:defctype dword-ptr (:pointer dword))
+(cffi:defctype ulong-ptr dword-ptr)
+(cffi:defctype handle pvoid)
+
+(cffi:defcstruct overlapped-us
+  (Offset dword)
+  (OffsetHigh dword))
+
+(cffi:defcunion overlapped-u
+  (overlapped-us overlapped-us)
+  (Pointer pvoid))
+
+(cffi:defcstruct overlapped
+  (Internal ulong-ptr)
+  (InternalHigh ulong-ptr)
+  (overlapped-u overlapped-u)
+  (hEvent handle))
+
 (cffi:defcfun (win32-create-file "CreateFileA" :convention :stdcall) :pointer 
   (filename :string)  
   (desired-access :uint32)  

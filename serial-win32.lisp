@@ -18,7 +18,13 @@
    (rts-toggle :initform nil
 	       :accessor rts-toggle
 	       :initarg :rts-toggle
-	       :documentation "RTS toggle control setting"))
+	       :documentation "RTS toggle control setting")
+   (overlapped-read :initform nil
+		    :accessor overlapped-read
+		    :initarg :overlapped-read)
+   (overlapped-write :initform nil
+		    :accessor overlapped-write
+		    :initarg :overlapped-write))
    (:documentation "Serial port class WIN32 implementation."))
 
 @export
@@ -251,19 +257,42 @@
 (defmethod read-serial-byte ((s <serial-win32>))
   (aref (read-serial-byte-seq s 1)))
 
+(defmethod reset-overlapped-read-event ((s <serial-win32>))
+  (cffi:with-foreign-slots ((hEvent) (overlapped-read s) overlapped)
+    (win32-reset-event hEvent)))
+
 @export
 (defmethod read-serial-byte-seq ((s <serial-win32>) count)
-  (cffi:with-foreign-object (buffer :char count)
-    (cffi:with-foreign-object (readbytes 'word)
-      (with-slots (fd) s
-	  (win32-confirm (win32-read-file fd buffer count readbytes (cffi:null-pointer))
-			 (loop with size = (cffi:mem-ref readbytes 'word)
-			    with result = (make-array size :element-type '(integer 0 255))
-			    for idx below size
-			    do (setf (aref result idx) (cffi:mem-aref buffer :char  idx))
-			    finally (return result))
-			 (error 'serial-error :text "could not read from device"))))))
-
+  "Read count bytes from the serial port. If a timeout is set it may 
+return less bytes than requested. With no timeout it will block
+until the requested number of bytes is read."
+  (when (> count 0)
+    (reset-overlapped-read-event s)
+    (cffi:with-foreign-objects ((comstat-ptr 'comstat)
+			   (flags 'dword))				  
+      (win32-onerror
+	  (win32-clear-comm-error fd flags comstat-ptr)
+	(error 'serial-error :text "ClearCommError failed."))
+      (cffi:with-foreign-object (buffer :char count)
+	(cffi:with-foreign-object (readbytes 'word)
+	  (with-slots (fd) s	
+	    (cffi:with-foreign-slots ((cbInQue) comstat-ptr comstat)
+	      (let ((n (min cbInQue count)))
+		(win32-confirm (win32-read-file fd buffer n readbytes (overlapped-read s))
+			       (progn
+				 (cond
+				   ((and (= (timeout s) 0) (> n 0))
+				    (win32-wait-for-single-object hEvent +INFINITE+))
+				   ((/= (timeout s))
+				    (win32-get-overlapped-result fd (overlapped-read s) readbytes T))
+				   (t nil))
+				 (loop with size = (cffi:mem-ref readbytes 'word)
+				    with result = (make-array size :element-type '(integer 0 255))
+				    for idx below size
+				    do (setf (aref result idx) (cffi:mem-aref buffer :char  idx))
+				    finally (return result)))
+			       (error 'serial-error :text "could not read from device"))))))))))
+	    
 @export
 (defmethod print-object :after ((s <serial-base>) stream)
   (with-slots (buffer-size rts-state rts-toggle dtr-toggle) s
