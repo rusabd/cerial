@@ -130,21 +130,43 @@
 	      (error 'serial-error :text "SetCommTimeouts failed"))))))))
 
 (defmethod configure-port ((s <serial-win32>))
-  (with-slots (fd) s
+  (with-slots (fd xonxoff dsrdtr baudrate bytesize stopbits parity) s
     (cffi:with-foreign-object (ptr 'dcb)
       (win32-memset ptr 0 (cffi:foreign-type-size 'dcb))
       (cffi:with-foreign-slots ((DCBlength) ptr dcb)
 	  (setf DCBlength (cffi:foreign-type-size 'dcb)))
       (win32-onerror (win32-get-comm-state fd ptr)
 	(error 'serial-error :text "GetCommState failed"))
-      (cffi:with-foreign-slots ((baudrate bytesize parity stopbits dcbflags) ptr dcb)
-	  (setf baudrate (baudrate->win32 (baudrate s)))
-	(setf bytesize (bytesize s))
-	(setf stopbits (stopbits->win32 (stopbits s)))
-	(setf parity (parity->win32 (parity s)))
-	(setf dcbflags (cffi:foreign-bitfield-value 'dcb-flags '(fbinary))))
-      (win32-onerror (win32-set-comm-state fd ptr)
-	(error 'serial-error :text "SetCommState failed")))))
+      (cffi:with-foreign-slots ((baudrate 
+				 bytesize 
+				 parity 
+				 stopbits 
+				 fbinary 
+				 fRtsControl 
+				 fDtrControl 
+				 fOutxCtsFlow
+				 fOutxDsrFlow
+				 fOutX fInX
+				 fNull
+				 fErrorChar
+				 fAbortOnError
+				 XonChar
+				 XoffChar) ptr dcb)
+	(setf baudrate (baudrate->win32 baudrate)
+	      bytesize bytesize
+	      stopbits (stopbits->win32 stopbits)
+	      parity   (parity->win32 parity)
+	      fbinary  1
+	      fOutxDsrFlow  dsrdtr
+	      fOutX         xonxoff
+	      fInX          xonxoff
+	      fNull         0
+	      fErrorChar    0
+	      fAbortOnError 0
+	      XonChar       +XON+
+	      XoffChar      +XOFF+)
+	(win32-onerror (win32-set-comm-state fd ptr)
+	  (error 'serial-error :text "SetCommState failed"))))))
 
 
 @export

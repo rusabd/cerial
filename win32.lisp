@@ -28,6 +28,8 @@
 (defconstant +CBR_128000+          128000)
 (defconstant +CBR_256000+          256000)
 
+(defconstant +XON+ 17)
+(defconstant +XOFF+ 19)
 
 (defconstant +NOPARITY+            0)
 (defconstant +ODDPARITY+           1)
@@ -36,26 +38,7 @@
 (defconstant +SPACEPARITY+         4)
 
 (cffi:load-foreign-library "kernel32")
-
-(cffi:defbitfield dcb-flags
-  fBinary;     /* Binary Mode (skip EOF check)    */
-  fParity;     /* Enable parity checking          */
-  fOutxCtsFlow; /* CTS handshaking on output       */
-  fOutxDsrFlow; /* DSR handshaking on output       */
-  fDtrControl1;  /* DTR Flow control                */
-  fDtrControl2;  /* DTR Flow control                */
-  fDsrSensitivity; /* DSR Sensitivity              */
-  fTXContinueOnXoff; /* Continue TX when Xoff sent */
-  fOutX;       /* Enable output X-ON/X-OFF        */
-  fInX;        /* Enable input X-ON/X-OFF         */
-  fErrorChar;  /* Enable Err Replacement          */
-  fNull;       /* Enable Null stripping           */
-  fRtsControl1;  /* Rts Flow control                */
-  fRtsControl2;  /* Rts Flow control                */
-  fAbortOnError; /* Abort all reads and writes on Error */
-)
   
-
 (cffi:defctype dword :uint32)
 (cffi:defctype word :uint16)
 (cffi:defctype bool :uchar)
@@ -63,7 +46,19 @@
 (cffi:defcstruct dcb 
   (DCBlength dword);      /* sizeof(DCB)                     */
   (BaudRate dword);       /* Baudrate at which running       */
-  (dcbflags dword);
+  (fBinary dword);     /* Binary Mode (skip EOF check)    */
+  (fParity dword);     /* Enable parity checking          */
+  (fOutxCtsFlow dword); /* CTS handshaking on output       */
+  (fOutxDsrFlow dword); /* DSR handshaking on output       */
+  (fDtrControl dword);  /* DTR Flow control                */
+  (fDsrSensitivity dword); /* DSR Sensitivity              */
+  (fTXContinueOnXoff dword); /* Continue TX when Xoff sent */
+  (fOutX dword);       /* Enable output X-ON/X-OFF        */
+  (fInX dword);        /* Enable input X-ON/X-OFF         */
+  (fErrorChar dword);  /* Enable Err Replacement          */
+  (fNull dword);       /* Enable Null stripping           */
+  (fRtsControl dword);  /* Rts Flow control                */
+  (fAbortOnError dword); /* Abort all reads and writes on Error */
   (wReserved word);       /* Not currently used              */
   (XonLim word);          /* Transmit X-ON threshold         */
   (XoffLim word);         /* Transmit X-OFF threshold        */
