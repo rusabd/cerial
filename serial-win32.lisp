@@ -174,7 +174,7 @@
 	(setf (slot-value s 'overlapped-write) ptr)))))
 
 (defmethod configure-port ((s <serial-win32>))
-  (with-slots (fd xonxoff dsrdtr baudrate bytesize stopbits parity rtscts dtr-state rts-state rts-toggle) s
+  (with-slots (fd xonxoff dsrdtr rtscts dtr-state rts-state rts-toggle) s
     (cffi:with-foreign-object (ptr 'dcb)
       (win32-memset ptr 0 (cffi:foreign-type-size 'dcb))
       (cffi:with-foreign-slots ((DCBlength) ptr dcb)
@@ -196,10 +196,10 @@
 				 fAbortOnError
 				 XonChar
 				 XoffChar) ptr dcb)
-	(setf baudrate (baudrate->win32 baudrate)
-	      bytesize bytesize
-	      stopbits (stopbits->win32 stopbits)
-	      parity   (parity->win32 parity)
+	(setf baudrate (baudrate->win32 (slot-value s 'baudrate))
+	      bytesize (slot-value s 'bytesize)
+	      stopbits (stopbits->win32 (slot-value s 'stopbits))
+	      parity   (parity->win32 (slot-value s 'parity))
 	      fbinary  1
 	      fOutxDsrFlow  dsrdtr
 	      fOutX         xonxoff
@@ -319,3 +319,5 @@ until the requested number of bytes is read."
   (with-slots (buffer-size rts-state rts-toggle dtr-toggle) s
     (format stream ", buffer-size: ~A, rts-state: ~A, rts-toggle: ~A, dtr-state: ~A"
 	    buffer-size rts-state rts-toggle dtr-toggle)))
+
+;; TODO: Look at serial-close!!

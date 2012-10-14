@@ -229,11 +229,10 @@
 
 @export
 (defmacro with-serial ((serial port &rest args) &body body)
-  `(let ((,serial (make-serial ,port ,@args)))
+  `(let ((,serial (make-serial-port ,port ,@args)))
      (unwind-protect
 	  ,@body
        (close-serial ,serial))))
-
 @export
 (defmacro set-flag (flag &key (on ()) (off ()))
   `(setf ,flag 

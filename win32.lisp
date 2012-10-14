@@ -112,12 +112,14 @@
   (cbOutQue dword))
 
 (cffi:defctype pvoid (:pointer :void)) 
+(cffi:defctype lpvoid (:pointer :void)) 
 (cffi:defctype dword-ptr (:pointer dword))
 (cffi:defctype ulong-ptr dword-ptr)
 (cffi:defctype handle pvoid)
 (cffi:defctype lpdword (:pointer dword))
 (cffi:defctype lpword (:pointer word))
 (cffi:defctype lpcomstat (:pointer comstat))
+(cffi:defctype lpctstr :string)
 
 (cffi:defcstruct overlapped-us
   (Offset dword)
@@ -134,6 +136,14 @@
   (hEvent handle))
 
 (cffi:defctype lpoverlapped (:pointer overlapped))
+
+(cffi:defcstruct security-attributes
+  (nLength dword)
+  (lpSecurityDescriptor lpvoid)
+  (bInheritHandle bool))
+
+(cffi:defctype lpsecurity-attributes (:pointer security-attributes))
+
 
 (cffi:defcfun (win32-reset-event "ResetEvent" :convention :stdcall) bool
   (hevent handle))
@@ -157,7 +167,15 @@
   (hFile handle)
   (flags dword))
 
+(cffi:defcfun (win32-create-event "CreateEvent" :convention :stdcall) bool
+  (lpEventAttributes lpsecurity-attributes)
+  (bManualReset bool)
+  (bInitialState bool)
+  (lpName lpctstr))
 
+(cffi:defcfun (win32-get-comm-timeouts "GetCommTimeouts" :convention :stdcall) bool
+  (hFile handle)
+  (timeouts (:pointer commtimeouts)))
 
 (cffi:defcfun (win32-create-file "CreateFileA" :convention :stdcall) :pointer 
   (filename :string)  
