@@ -2,8 +2,11 @@
 
 (defconstant +GENERIC_READ+  #x80000000)
 (defconstant +GENERIC_WRITE+ #x40000000)
+(defconstant +FILE_ATTRIBUTE_NORMAL+ #x80)
+(defconstant +FILE_FLAG_OVERLAPPED+ #x40000000)
 (defconstant +OPEN_EXISTING+ 3)
 
+(defconstant +MAXDWORD+ 4294967295)
 
 (defconstant +ONESTOPBIT+    0)
 (defconstant +ONE5STOPBITS+  1)
@@ -25,6 +28,8 @@
 (defconstant +CBR_128000+          128000)
 (defconstant +CBR_256000+          256000)
 
+(defconstant +XON+ 17)
+(defconstant +XOFF+ 19)
 
 (defconstant +NOPARITY+            0)
 (defconstant +ODDPARITY+           1)
@@ -32,27 +37,28 @@
 (defconstant +MARKPARITY+          3)
 (defconstant +SPACEPARITY+         4)
 
+(defconstant +RTS_CONTROL_DISABLE+   0)
+(defconstant +RTS_CONTROL_ENABLE+    1)
+(defconstant +RTS_CONTROL_HANDSHAKE+ 2)
+(defconstant +RTS_CONTROL_TOGGLE+    3)
+(defconstant +SETRTS+                3)
+(defconstant +CLRRTS+                4)
+
+(defconstant +DTR_CONTROL_DISABLE+   0)
+(defconstant +DTR_CONTROL_ENABLE+    1)
+(defconstant +DTR_CONTROL_HANDSHAKE+ 2)
+(defconstant +SETDTR+                5)
+(defconstant +CLRDTR+                6)
+
+(defconstant +INFINITE+ #xFFFFFFFF)
+
+(defconstant +PURGE_TXCLEAR+ 4)
+(defconstant +PURGE_TXABORT+ 1)
+(defconstant +PURGE_RXCLEAR+ 8)
+(defconstant +PURGE_RXABORT+ 2)
+
 (cffi:load-foreign-library "kernel32")
-
-(cffi:defbitfield dcb-flags
-  fBinary;     /* Binary Mode (skip EOF check)    */
-  fParity;     /* Enable parity checking          */
-  fOutxCtsFlow; /* CTS handshaking on output       */
-  fOutxDsrFlow; /* DSR handshaking on output       */
-  fDtrControl1;  /* DTR Flow control                */
-  fDtrControl2;  /* DTR Flow control                */
-  fDsrSensitivity; /* DSR Sensitivity              */
-  fTXContinueOnXoff; /* Continue TX when Xoff sent */
-  fOutX;       /* Enable output X-ON/X-OFF        */
-  fInX;        /* Enable input X-ON/X-OFF         */
-  fErrorChar;  /* Enable Err Replacement          */
-  fNull;       /* Enable Null stripping           */
-  fRtsControl1;  /* Rts Flow control                */
-  fRtsControl2;  /* Rts Flow control                */
-  fAbortOnError; /* Abort all reads and writes on Error */
-)
   
-
 (cffi:defctype dword :uint32)
 (cffi:defctype word :uint16)
 (cffi:defctype bool :uchar)
@@ -60,7 +66,19 @@
 (cffi:defcstruct dcb 
   (DCBlength dword);      /* sizeof(DCB)                     */
   (BaudRate dword);       /* Baudrate at which running       */
-  (dcbflags dword);
+  (fBinary dword);     /* Binary Mode (skip EOF check)    */
+  (fParity dword);     /* Enable parity checking          */
+  (fOutxCtsFlow dword); /* CTS handshaking on output       */
+  (fOutxDsrFlow dword); /* DSR handshaking on output       */
+  (fDtrControl dword);  /* DTR Flow control                */
+  (fDsrSensitivity dword); /* DSR Sensitivity              */
+  (fTXContinueOnXoff dword); /* Continue TX when Xoff sent */
+  (fOutX dword);       /* Enable output X-ON/X-OFF        */
+  (fInX dword);        /* Enable input X-ON/X-OFF         */
+  (fErrorChar dword);  /* Enable Err Replacement          */
+  (fNull dword);       /* Enable Null stripping           */
+  (fRtsControl dword);  /* Rts Flow control                */
+  (fAbortOnError dword); /* Abort all reads and writes on Error */
   (wReserved word);       /* Not currently used              */
   (XonLim word);          /* Transmit X-ON threshold         */
   (XoffLim word);         /* Transmit X-OFF threshold        */
@@ -74,6 +92,91 @@
   (EvtChar :char);         /* Received Event character        */
   (wReserved1 word));      /* Fill for now.                   */
 
+(cffi:defcstruct commtimeouts
+  (ReadIntervalTimeout dword)
+  (ReadTotalTimeoutMultiplier dword)
+  (ReadTotalTimeoutConstant dword)
+  (WriteTotalTimeoutMultiplier dword)
+  (WriteTotalTimeoutConstant dword))
+
+(cffi:defcstruct comstat
+  (fCtsHold dword)
+  (fDsrHold  dword)
+  (fRlsdHold dword)
+  (fXoffHold dword)
+  (fXoffSent dword)
+  (fEof dword)
+  (fTxim dword)
+  (fReserved dword)
+  (cbInQue dword)
+  (cbOutQue dword))
+
+(cffi:defctype pvoid (:pointer :void)) 
+(cffi:defctype lpvoid (:pointer :void)) 
+(cffi:defctype dword-ptr (:pointer dword))
+(cffi:defctype ulong-ptr dword-ptr)
+(cffi:defctype handle pvoid)
+(cffi:defctype lpdword (:pointer dword))
+(cffi:defctype lpword (:pointer word))
+(cffi:defctype lpcomstat (:pointer comstat))
+(cffi:defctype lpctstr :string)
+
+(cffi:defcstruct overlapped-us
+  (Offset dword)
+  (OffsetHigh dword))
+
+(cffi:defcunion overlapped-u
+  (overlapped-us overlapped-us)
+  (Pointer pvoid))
+
+(cffi:defcstruct overlapped
+  (Internal ulong-ptr)
+  (InternalHigh ulong-ptr)
+  (overlapped-u overlapped-u)
+  (hEvent handle))
+
+(cffi:defctype lpoverlapped (:pointer overlapped))
+
+(cffi:defcstruct security-attributes
+  (nLength dword)
+  (lpSecurityDescriptor lpvoid)
+  (bInheritHandle bool))
+
+(cffi:defctype lpsecurity-attributes (:pointer security-attributes))
+
+
+(cffi:defcfun (win32-reset-event "ResetEvent" :convention :stdcall) bool
+  (hevent handle))
+
+(cffi:defcfun (win32-clear-comm-error "ClearCommError" :convention :stdcall) bool
+  (hfile handle)
+  (lperrors lpdword)
+  (lpstat lpcomstat))
+
+(cffi:defcfun (win32-wait-for-single-object "WaitForSingleObject" :convention :stdcall) bool
+  (hHandle handle)
+  (dwMilliseconds dword))
+
+(cffi:defcfun (win32-get-overlapped-result "GetOverlappedResult" :convention :stdcall) bool
+  (hFile handle)
+  (lpOverlapped lpoverlapped)
+  (lpNumberOfBytesTransferred lpword)
+  (bWait bool))
+  
+(cffi:defcfun (win32-purge-comm "PurgeComm" :convention :stdcall) bool
+  (hFile handle)
+  (flags dword))
+
+(cffi:defcfun (win32-create-event "CreateEvent" :convention :stdcall) bool
+  (lpEventAttributes lpsecurity-attributes)
+  (bManualReset bool)
+  (bInitialState bool)
+  (lpName lpctstr))
+
+(cffi:defcfun (win32-get-comm-timeouts "GetCommTimeouts" :convention :stdcall) bool
+  (hFile handle)
+  (timeouts (:pointer commtimeouts)))
+
 (cffi:defcfun (win32-create-file "CreateFileA" :convention :stdcall) :pointer 
   (filename :string)  
   (desired-access :uint32)  
@@ -82,6 +185,19 @@
   (creation-disposition :uint32)
   (flags-and-attributes :uint32) 
   (template-file :pointer))
+
+(cffi:defcfun (win32-setup-comm "SetupComm" :convention :stdcall) bool
+  (file :pointer)
+  (dwInQueue dword)
+  (dwOutQueue dword))
+
+(cffi:defcfun (win32-escape-comm-function "EscapeCommFunction" :convention :stdcall) bool
+  (file :pointer)
+  (escape dword))
+
+(cffi:defcfun (win32-set-comm-timeouts "SetCommTimeouts" :convention :stdcall) bool
+  (file :pointer)
+  (timeouts (:pointer commtimeouts)))
 
 (cffi:defcfun (win32-set-comm-state "SetCommState" :convention :stdcall) bool
   (file :pointer)
