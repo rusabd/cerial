@@ -50,6 +50,13 @@
 (defconstant +SETDTR+                5)
 (defconstant +CLRDTR+                6)
 
+(defconstant +INFINITE+ #xFFFFFFFF)
+
+(defconstant +PURGE_TXCLEAR+ 4)
+(defconstant +PURGE_TXABORT+ 1)
+(defconstant +PURGE_RXCLEAR+ 8)
+(defconstant +PURGE_RXABORT+ 2)
+
 (cffi:load-foreign-library "kernel32")
   
 (cffi:defctype dword :uint32)
@@ -108,6 +115,9 @@
 (cffi:defctype dword-ptr (:pointer dword))
 (cffi:defctype ulong-ptr dword-ptr)
 (cffi:defctype handle pvoid)
+(cffi:defctype lpdword (:pointer dword))
+(cffi:defctype lpword (:pointer word))
+(cffi:defctype lpcomstat (:pointer comstat))
 
 (cffi:defcstruct overlapped-us
   (Offset dword)
@@ -122,6 +132,32 @@
   (InternalHigh ulong-ptr)
   (overlapped-u overlapped-u)
   (hEvent handle))
+
+(cffi:defctype lpoverlapped (:pointer overlapped))
+
+(cffi:defcfun (win32-reset-event "ResetEvent" :convention :stdcall) bool
+  (hevent handle))
+
+(cffi:defcfun (win32-clear-comm-error "ClearCommError" :convention :stdcall) bool
+  (hfile handle)
+  (lperrors lpdword)
+  (lpstat lpcomstat))
+
+(cffi:defcfun (win32-wait-for-single-object "WaitForSingleObject" :convention :stdcall) bool
+  (hHandle handle)
+  (dwMilliseconds dword))
+
+(cffi:defcfun (win32-get-overlapped-result "GetOverlappedResult" :convention :stdcall) bool
+  (hFile handle)
+  (lpOverlapped lpoverlapped)
+  (lpNumberOfBytesTransferred lpword)
+  (bWait bool))
+  
+(cffi:defcfun (win32-purge-comm "PurgeComm" :convention :stdcall) bool
+  (hFile handle)
+  (flags dword))
+
+
 
 (cffi:defcfun (win32-create-file "CreateFileA" :convention :stdcall) :pointer 
   (filename :string)  

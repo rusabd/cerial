@@ -7,24 +7,26 @@
 		:accessor buffer-size
 		:initarg :buffer-size
 		:documentation "The recommended size of the device's internal input buffer, in bytes")
-   (rts-state :initform +RTS_CONTROL_ENABLE+
-	      :accessor rts-state
+   (rts-state :initform nil
+	      :reader rts-state
 	      :initarg :rts-state
 	      :documentation "Terminal status line: Request to Send")
-   (dtr-state :initform +DTR_CONTROL_ENABLE+
-	      :accessor dtr-state
+   (dtr-state :initform nil
+	      :reader dtr-state
 	      :initarg :dtr-state
 	      :documentation "Terminal status line: Data Terminal Ready")
    (rts-toggle :initform nil
-	       :accessor rts-toggle
+	       :reader rts-toggle
 	       :initarg :rts-toggle
 	       :documentation "RTS toggle control setting")
    (overlapped-read :initform nil
-		    :accessor overlapped-read
+		    :reader overlapped-read
 		    :initarg :overlapped-read)
    (overlapped-write :initform nil
-		    :accessor overlapped-write
-		    :initarg :overlapped-write))
+		     :reader overlapped-write
+		     :initarg :overlapped-write)
+   (org-timeouts :initform nil
+		 :initarg :org-timeouts))
    (:documentation "Serial port class WIN32 implementation."))
 
 @export
@@ -39,10 +41,7 @@
 			   (write-timeout nil)
 			   (dsrdtr nil)
 			   (inter-char-timeout nil)
-			   (buffer-size nil)
-			   (rts-state +RTS_CONTROL_ENABLE+)
-			   (dtr-state +DTR_CONTROL_ENABLE+)
-			   (rts-toggle nil))
+			   (buffer-size nil))
   (make-instance '<serial-win32>
 		 :port port
 		 :baudrate baudrate
@@ -55,10 +54,7 @@
 		 :write-timeout write-timeout
 		 :dsrdtr dsrdtr
 		 :inter-char-timeout inter-char-timeout
-		 :buffer-size buffer-size
-		 :rts-state rts-state
-		 :dtr-state dtr-state
-		 :rts-toggle rts-toggle))
+		 :buffer-size buffer-size))
 
 (defmethod device ((s <serial-win32>) port)
   (declare (ignore s))
@@ -99,6 +95,11 @@
     (:PARITY-MARK +MARKPARITY+)
     (:PARITY-SPACE +SPACEPARITY+)))
 
+(defmethod initialize-instance :before ((s <serial-win32>) &key)
+  (setf (slot-value s 'rts-toggle) nil)
+  (setf (slot-value s 'rts-state) +RTS_CONTROL_ENABLE+)
+  (setf (slot-value s 'rts-state) +DTR_CONTROL_ENABLE+))
+
 @export
 (defmethod open-serial ((s <serial-win32>))
   (let* ((null (cffi:null-pointer))
@@ -106,8 +107,9 @@
     (unless (valid-pointer-p handler)
       (error 'serial-error :text "CreateFile failed"))
     (when (buffer-size s) 
-      (win32-onerror (win32-setup-comm handler (buffer-size s))
+      (win32-onerror (win32-setup-comm handler (buffer-size s) (buffer-size s))
 	(error 'serial-error :text "SetupComm failed")))
+    
     (setf (slot-value s 'fd) handler)))
 
 @export
@@ -115,9 +117,8 @@
   (with-slots (fd) s
     (win32-close-handle fd)))
 
-;; TODO: Not done yet, timeouts needs to be marshalled
 (defmethod set-timeout ((s <serial-win32>))
-  "Set Windows timeout values; "
+  "Set Windows timeout values."
   (with-slots (timeout inter-char-timeout write-timeout fd) s
     (flet ((read-timeouts (timeout)
              (cond
@@ -152,6 +153,25 @@
 		  WriteTotalTimeoutConstant write-total-timeout-constant)
 	    (win32-onerror (win32-set-comm-timeouts fd ptr)
 	      (error 'serial-error :text "SetCommTimeouts failed"))))))))
+
+(defmethod configure-port :before ((s <serial-win32>))
+  (cffi:with-foreign-object (ptr 'commtimeouts)
+    (win32-get-comm-timeouts (get-fd s) ptr)
+    (setf (slot-value s 'org-timeouts) ptr)))
+
+(defmethod configure-port :after ((s <serial-win32>))
+  (with-slots (fd) s
+    (win32-purge-comm fd 
+		      (logior +PURGE_TXCLEAR+ +PURGE_TXABORT+ 
+			     +PURGE_RXCLEAR+ +PURGE_RXABORT+))
+    (cffi:with-foreign-object (ptr 'overlapped)
+      (cffi:with-foreign-slots ((hEvent) ptr overlapped)
+	(setf hEvent (win32-create-event (cffi:null-pointer) 1 0 (cffi:null-pointer)))
+	(setf (slot-value s 'overlapped-read) ptr)))
+    (cffi:with-foreign-object (ptr 'overlapped)
+      (cffi:with-foreign-slots ((hEvent) ptr overlapped)
+	(setf hEvent (win32-create-event (cffi:null-pointer) 0 0 (cffi:null-pointer)))
+	(setf (slot-value s 'overlapped-write) ptr)))))
 
 (defmethod configure-port ((s <serial-win32>))
   (with-slots (fd xonxoff dsrdtr baudrate bytesize stopbits parity rtscts dtr-state rts-state rts-toggle) s
@@ -237,7 +257,7 @@
 (defmethod (setf dtr-state) :around (enabledp (s <serial-win32>))
   (if enabledp
       (call-next-method +DTR_CONTROL_ENABLE+ s)
-      (call-next-method +DTR_CONTROL_DISABLE+ s)))x
+      (call-next-method +DTR_CONTROL_DISABLE+ s)))
 
 @export
 (defmethod (setf dtr-state) :after (enabledp (s <serial-win32>))
@@ -268,30 +288,31 @@ return less bytes than requested. With no timeout it will block
 until the requested number of bytes is read."
   (when (> count 0)
     (reset-overlapped-read-event s)
-    (cffi:with-foreign-objects ((comstat-ptr 'comstat)
-			   (flags 'dword))				  
-      (win32-onerror
-	  (win32-clear-comm-error fd flags comstat-ptr)
-	(error 'serial-error :text "ClearCommError failed."))
-      (cffi:with-foreign-object (buffer :char count)
-	(cffi:with-foreign-object (readbytes 'word)
-	  (with-slots (fd) s	
+    (with-slots (fd) s	
+      (cffi:with-foreign-objects ((comstat-ptr 'comstat)
+				  (flags 'dword))				  
+	(win32-onerror
+	    (win32-clear-comm-error fd flags comstat-ptr)
+	  (error 'serial-error :text "ClearCommError failed."))
+	(cffi:with-foreign-object (buffer :char count)
+	  (cffi:with-foreign-object (readbytes 'word)
 	    (cffi:with-foreign-slots ((cbInQue) comstat-ptr comstat)
-	      (let ((n (min cbInQue count)))
-		(win32-confirm (win32-read-file fd buffer n readbytes (overlapped-read s))
-			       (progn
-				 (cond
-				   ((and (= (timeout s) 0) (> n 0))
-				    (win32-wait-for-single-object hEvent +INFINITE+))
-				   ((/= (timeout s))
-				    (win32-get-overlapped-result fd (overlapped-read s) readbytes T))
-				   (t nil))
-				 (loop with size = (cffi:mem-ref readbytes 'word)
-				    with result = (make-array size :element-type '(integer 0 255))
-				    for idx below size
-				    do (setf (aref result idx) (cffi:mem-aref buffer :char  idx))
-				    finally (return result)))
-			       (error 'serial-error :text "could not read from device"))))))))))
+	      (cffi:with-foreign-slots ((hEvent) (overlapped-read s) overlapped)
+		(let ((n (min cbInQue count)))
+		  (win32-confirm (win32-read-file fd buffer n readbytes (overlapped-read s))
+				 (progn
+				   (cond
+				     ((and (= (timeout s) 0) (> n 0))
+				      (win32-wait-for-single-object hEvent +INFINITE+))
+				     ((/= (timeout s))
+				      (win32-get-overlapped-result fd (overlapped-read s) readbytes T))
+				     (t nil))
+				   (loop with size = (cffi:mem-ref readbytes 'word)
+				      with result = (make-array size :element-type '(integer 0 255))
+				      for idx below size
+				      do (setf (aref result idx) (cffi:mem-aref buffer :char  idx))
+				      finally (return result)))
+				 (error 'serial-error :text "could not read from device")))))))))))
 	    
 @export
 (defmethod print-object :after ((s <serial-base>) stream)
