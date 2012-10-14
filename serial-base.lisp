@@ -218,10 +218,13 @@
 
 @export
 (defmacro with-serial ((serial port &rest args) &body body)
-  `(let ((,serial (make-serial ,port ,@args)))
+  `(let ((,serial))
      (unwind-protect
-	  ,@body
-       (close-serial ,serial))))
+	  (progn
+	    (setf ,serial (make-serial-port ,port ,@args))
+	    ,@body)
+       (when ,serial
+	 (close-serial ,serial)))))
 
 @export
 (defmacro set-flag (flag &key (on ()) (off ()))

@@ -85,7 +85,8 @@
 
 (defmethod configure-port ((s <serial-win32>))
   (with-slots (fd) s
-    (cffi:with-foreign-object (ptr 'dcb)
+    (cffi:with-foreign-objects ((ptr 'dcb)
+				(timeouts 'commtimeouts))
       (win32-memset ptr 0 (cffi:foreign-type-size 'dcb))
       (cffi:with-foreign-slots ((DCBlength) ptr dcb)
 	  (setf DCBlength (cffi:foreign-type-size 'dcb)))
@@ -97,6 +98,22 @@
 	(setf stopbits (stopbits->win32 (stopbits s)))
 	(setf parity (parity->win32 (parity s)))
 	(setf dcbflags (cffi:foreign-bitfield-value 'dcb-flags '(fbinary))))
+      (win32-setup-comm fd 4096 4096)
+      (win32-memset timeouts 0 (cffi:foreign-type-size 'commtimeouts))
+      (cffi:with-foreign-slots ((ReadIntervalTimeout 
+      				 ReadTotalTimeoutMultiplier 
+      				 ReadTotalTimeoutConstant
+      				 WriteTotalTimeoutMultiplier
+      				 WriteTotalTimeoutConstant) timeouts commtimeouts)
+      	(setf ReadIntervalTimeout 50
+      	      ReadTotalTimeoutMultiplier 10
+      	      ReadTotalTimeoutConstant (or (timeout s) #xffffffff)
+      	      WriteTotalTimeoutMultiplier 50
+      	      WriteTotalTimeoutConstant 10))
+      (win32-onerror (win32-set-comm-timeouts fd timeouts)
+      	(error 'serial-error :text "SetCommTimeouts failed"))
+	
+      
       (win32-onerror (win32-set-comm-state fd ptr)
 	(error 'serial-error :text "SetCommState failed")))))
 

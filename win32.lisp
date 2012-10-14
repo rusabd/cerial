@@ -113,6 +113,23 @@
   (writtenBytes (:pointer word))
   (overlapped-p :pointer))
 
+
+(cffi:defcstruct commtimeouts
+  (ReadIntervalTimeout dword)
+  (ReadTotalTimeoutMultiplier dword)
+  (ReadTotalTimeoutConstant dword)
+  (WriteTotalTimeoutMultiplier dword)
+  (WriteTotalTimeoutConstant dword))
+
+(cffi:defcfun (win32-set-comm-timeouts "SetCommTimeouts" :convention :stdcall) bool
+  (file :pointer)
+  (timeouts (:pointer commtimeouts)))
+
+(cffi:defcfun (win32-setup-comm "SetupComm" :convention :stdcall) bool
+  (file :pointer)
+  (inQueue dword)
+  (outQueue dword))
+
 (defun valid-pointer-p (pointer)
   (not (cffi:pointer-eq pointer (cffi:make-pointer #xFFFFFFFF))))
 
