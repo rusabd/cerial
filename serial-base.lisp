@@ -196,9 +196,16 @@
   (declare (ignore timeout))
   (maybe-configure-port s))
 
+(defmethod read-serial-byte :before ((s <serial-base>))
+  (unless (openp s) (error 'serial-error :text (format nil "Port ~A not open." (port s)))))
+
+(defmethod read-serial-byte-seq :before ((s <serial-base>) count)
+  (declare (ignore count))
+  (unless (openp s) (error 'serial-error :text (format nil "Port ~A not open." (port s)))))
+
 @export
 (defmethod print-object ((s <serial-base>) stream)
-  (format stream "~A[open=~A](port=~A, baudrate=~A, bytesize=~A, parity=~A, stopbits=~A, timeout=~A, xonxoff=~A, rtscts=~A, dsrdtr=~A)"
+  (format stream "~A[open=~A]:port=~A, baudrate=~A, bytesize=~A, parity=~A, stopbits=~A, timeout=~A, xonxoff=~A, rtscts=~A, dsrdtr=~A"
 	  (type-of s)
 	  (when (get-fd s) T)
 	  (port s)
@@ -217,12 +224,15 @@
     (open-serial s)))
 
 @export
+(defmethod openp ((s <serial-base>))
+  (get-fd s))
+
+@export
 (defmacro with-serial ((serial port &rest args) &body body)
-  `(let ((,serial (make-serial ,port ,@args)))
+  `(let ((,serial (make-serial-port ,port ,@args)))
      (unwind-protect
 	  ,@body
        (close-serial ,serial))))
-
 @export
 (defmacro set-flag (flag &key (on ()) (off ()))
   `(setf ,flag 
@@ -239,3 +249,4 @@
     (let ((on (reduce #'fn on :initial-value nil))
 	  (off (reduce #'fn off :initial-value nil)))
       `(setf ,flag (logior ,@on (logand ,flag (lognot (logior ,@off))))))))
+
