@@ -80,7 +80,8 @@
 @export
 (defmethod close-serial ((s <serial-win32>))
   (with-slots (fd) s
-    (win32-close-handle fd)))
+    (win32-close-handle fd)
+    (setf fd nil)))
 
 
 (defmethod configure-port ((s <serial-win32>))
@@ -106,7 +107,7 @@
       				 WriteTotalTimeoutMultiplier
       				 WriteTotalTimeoutConstant) timeouts commtimeouts)
       	(setf ReadIntervalTimeout 50
-      	      ReadTotalTimeoutMultiplier 10
+      	      ReadTotalTimeoutMultiplier 0
       	      ReadTotalTimeoutConstant (or (timeout s) #xffffffff)
       	      WriteTotalTimeoutMultiplier 50
       	      WriteTotalTimeoutConstant 10))

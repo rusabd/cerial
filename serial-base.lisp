@@ -99,6 +99,9 @@
    (supported-bytesizes :initform +BYTESIZES+
 			:reader get-supported-bytesizes)))
 
+@export
+(defun open-p (s)
+  (get-fd s))
 
 (defun maybe-configure-port (s)
   (when (get-fd s)
